@@ -489,6 +489,13 @@ PW.SCENARIOS = [
   },
 ];
 
+/* ── 2.3 — Standard full-time week, in hours, net of ADO accrual.
+      Drives the FTE & Hours Calculator's default conversion; Guide 4's
+      Hours Per Week field calls this "the standard figure, typically
+      38" — the calculator also lets a manager override it for the rare
+      EBA that genuinely differs, without this default ever changing. ── */
+PW.STANDARD_FTE_HOURS = 38;
+
 /* ── Static contact / footer info ── */
 PW.HELP_URL = 'https://austinictemr.atlassian.net/servicedesk/customer/portal/80';
 PW.DISCLAIMER = 'This is an unofficial support tool built to make Austin Health\u2019s SuccessFactors position-management process easier to navigate. It is not an official Austin Health system and is not a substitute for guidance from HR Services or your Finance Business Partner. Always confirm anything unusual or high-risk before submitting.';

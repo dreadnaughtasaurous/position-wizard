@@ -361,6 +361,23 @@
 .sync-table th { color: var(--text-3); font-weight: 650; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; }
 .sync-table tr:last-child td { border-bottom: none; }
 
+/* ── 2.3 — FTE & Hours Calculator: a two-field grid (FTE, Hours) with
+      a connector icon between, plus quick-fill chips and a clickable
+      reference table (reuses .sync-table). The connector only makes
+      sense side-by-side, so it rotates and the grid stacks below 480px. ── */
+.calc-grid { display: grid; grid-template-columns: 1fr 32px 1fr; align-items: end; gap: 14px; }
+.calc-field .input { font-size: var(--text-2xl); font-weight: 650; padding: 10px 14px; text-align: center; }
+.calc-connector { display: flex; align-items: center; justify-content: center; height: 44px; color: var(--text-3); }
+.calc-connector svg { width: 18px; height: 18px; }
+@media (max-width: 480px) {
+  .calc-grid { grid-template-columns: 1fr; }
+  .calc-connector { transform: rotate(90deg); height: auto; padding: 4px 0; }
+}
+.quick-fte-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
+.calc-ref-row { cursor: pointer; transition: background var(--transition); }
+.calc-ref-row:hover { background: var(--bg-soft); }
+.calc-ref-row.is-current td:first-child { color: var(--brand-1); font-weight: 700; }
+
 /* ── Misc ── */
 .divider-line { border: none; border-top: 1px solid var(--divider); margin: 28px 0; }
 .kbd {

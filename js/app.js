@@ -565,6 +565,65 @@ document.addEventListener('alpine:init', () => {
       });
     },
   }));
+
+  /* ============================================================
+     FTE & HOURS CALCULATOR — 2.3
+     ------------------------------------------------------------
+     Two-way arithmetic for the one relationship that sits behind
+     Target FTE, arguably the single most consequential field in the
+     whole record: Hours = FTE \u00d7 standard week (38, net of ADO
+     accrual, unless overridden for a genuinely different EBA). Auto-
+     flags the Multiple Holders Allowed rule the instant FTE goes
+     above 1.0 \u2014 the same rule the Submission Readiness Check
+     cross-checks again right before a manager actually submits.
+     ============================================================ */
+  Alpine.data('fteCalc', () => ({
+    standardHoursInput: String(PW.STANDARD_FTE_HOURS),
+    fte: '1',
+    hours: String(PW.STANDARD_FTE_HOURS),
+
+    quickValues: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    referenceValues: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0],
+
+    get standardHours() {
+      const n = parseFloat(this.standardHoursInput);
+      return (!isNaN(n) && n > 0) ? n : PW.STANDARD_FTE_HOURS;
+    },
+
+    // Target FTE is the Finance-approved figure \u2014 if the standard
+    // week changes, keep FTE fixed and recompute Hours against it,
+    // rather than the other way round.
+    onStandardHoursInput(val) {
+      this.standardHoursInput = val;
+      const f = parseFloat(this.fte);
+      if (!isNaN(f)) this.hours = PW.fteToHours(f, this.standardHours);
+    },
+
+    onFteInput(val) {
+      this.fte = val;
+      const f = parseFloat(val);
+      this.hours = (val === '' || isNaN(f)) ? '' : PW.fteToHours(f, this.standardHours);
+    },
+
+    onHoursInput(val) {
+      this.hours = val;
+      const h = parseFloat(val);
+      this.fte = (val === '' || isNaN(h)) ? '' : PW.hoursToFte(h, this.standardHours);
+    },
+
+    quickFill(v) {
+      this.fte = String(v);
+      this.hours = PW.fteToHours(v, this.standardHours);
+    },
+
+    hoursFor(v) { return PW.fteToHours(v, this.standardHours); },
+
+    get fteNum() {
+      const n = parseFloat(this.fte);
+      return isNaN(n) ? null : n;
+    },
+    get multipleHoldersFlag() { return this.fteNum !== null && this.fteNum > 1; },
+  }));
 });
 
 /* ---------- Browser back/forward sync ----------

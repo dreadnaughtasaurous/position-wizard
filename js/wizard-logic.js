@@ -566,6 +566,23 @@
   const BUSINESS_CASE_NUMBER_RE = /^\d{2}\.\d{3}$/;
   function isValidBusinessCaseNumber(v) { return BUSINESS_CASE_NUMBER_RE.test(String(v || '').trim()); }
 
+  /* ── 2.3 — FTE \u2194 Hours conversion. Hours = FTE \u00d7 standard week
+     (PW.STANDARD_FTE_HOURS unless a caller passes its own, e.g. an
+     EBA-specific override from the calculator UI). Returns plain
+     rounded numbers, not fixed-decimal strings, so a whole-number
+     result like 38 doesn't get forced into "38.00" by a caller that
+     just wants to display it. ── */
+  function roundTo(n, decimals) {
+    const f = 10 ** decimals;
+    return Math.round((n + Number.EPSILON) * f) / f;
+  }
+  function fteToHours(fte, standardHours) {
+    return roundTo(fte * (standardHours || PW.STANDARD_FTE_HOURS), 2);
+  }
+  function hoursToFte(hours, standardHours) {
+    return roundTo(hours / (standardHours || PW.STANDARD_FTE_HOURS), 4);
+  }
+
   /* ---------- Plain-text summary (for the Copy button) ----------
      3.3 — trail is the manager's question-by-question decision path
      (an array of { tag, title, answer }), supplied by the wizard's
@@ -634,4 +651,6 @@
   PW.derivePath = derivePath;
   PW.preflightRelevance = preflightRelevance;
   PW.isValidBusinessCaseNumber = isValidBusinessCaseNumber;
+  PW.fteToHours = fteToHours;
+  PW.hoursToFte = hoursToFte;
 })();

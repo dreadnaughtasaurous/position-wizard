@@ -52,6 +52,7 @@
 <symbol id="i-swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 12l-4 4 4 4"/></symbol>
 <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></symbol>
 <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
+<symbol id="i-calculator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 6.5h8"/><path d="M8 11.2h.01M12 11.2h.01M16 11.2h.01M8 14.8h.01M12 14.8h.01M16 14.8h.01M8 18.4h.01M12 18.4h.01"/></symbol>
 </defs>
 </svg>
 
@@ -104,6 +105,9 @@
       </button>
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'preflight' }" @click="$store.nav.go('preflight')">
         <svg><use href="#i-check-circle"/></svg> Submission Readiness
+      </button>
+      <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'fte' }" @click="$store.nav.go('fte')">
+        <svg><use href="#i-calculator"/></svg> FTE &amp; Hours Calculator
       </button>
     </nav>
 
@@ -181,6 +185,13 @@
           <h3>Submission Readiness Check</h3>
           <p>About to submit in SuccessFactors? Run your Change Reason, FTE, Pay Scale, business case, and Parent Position against the gotchas that trigger a Send Back — before you go in.</p>
           <span class="tool-card-cta">Run the check <svg><use href="#i-arrow-right"/></svg></span>
+        </button>
+
+        <button class="tool-card" @click="$store.nav.go('fte')">
+          <div class="tool-card-icon" style="background:var(--brand-soft); color:var(--brand-2)"><svg><use href="#i-calculator"/></svg></div>
+          <h3>FTE &amp; Hours Calculator</h3>
+          <p>Convert Target FTE to Hours Per Week and back, instantly — no more arithmetic on the most consequential field in the record. Flags Multiple Holders Allowed the moment FTE goes above 1.0.</p>
+          <span class="tool-card-cta">Open the calculator <svg><use href="#i-arrow-right"/></svg></span>
         </button>
       </div>
     </section>
@@ -852,6 +863,72 @@
           </div>
         </div>
       </template>
+    </section>
+
+    <!-- ====================== FTE & HOURS CALCULATOR (2.3) ====================== -->
+    <section class="view" x-show="$store.nav.view === 'fte'" x-cloak x-data="fteCalc()">
+      <div class="page-head">
+        <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-calculator"/></svg> Quick reference</div>
+        <h1>FTE &amp; Hours Calculator</h1>
+        <p class="lede">Target FTE is the single most consequential field on a position. Convert it to Hours Per Week — or work backwards from hours to FTE — without doing the arithmetic by hand. Figures here are net hours, excluding ADO accrual.</p>
+      </div>
+
+      <div class="card" style="max-width:560px; padding:22px 24px;">
+        <div class="calc-grid">
+          <div class="calc-field">
+            <label class="field-label">Target FTE</label>
+            <input class="input" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 0.6" :value="fte" @input="onFteInput($event.target.value)">
+          </div>
+          <div class="calc-connector"><svg><use href="#i-swap"/></svg></div>
+          <div class="calc-field">
+            <label class="field-label">Hours per week</label>
+            <input class="input" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 22.8" :value="hours" @input="onHoursInput($event.target.value)">
+          </div>
+        </div>
+
+        <div class="quick-fte-row">
+          <span class="field-hint" style="margin:0">Quick fill:</span>
+          <template x-for="v in quickValues" :key="v">
+            <button class="chip" :class="{ 'is-active': fteNum === v }" @click="quickFill(v)" x-text="v.toFixed(1)"></button>
+          </template>
+        </div>
+
+        <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--divider)">
+          <label class="field-label">Standard full-time week (override only if this role's EBA genuinely differs)</label>
+          <input class="input" style="max-width:120px; margin-top:6px" type="number" step="1" min="1" :value="standardHoursInput" @input="onStandardHoursInput($event.target.value)">
+          <p class="field-hint">Austin Health's standard is 38 hours, net of ADO accrual — don't add ADO hours on top when entering this figure in SuccessFactors.</p>
+        </div>
+      </div>
+
+      <template x-if="multipleHoldersFlag">
+        <div class="callout callout-warning" style="margin-top:22px; max-width:560px">
+          <svg><use href="#i-alert-circle"/></svg>
+          <div>
+            <strong>Multiple Holders Allowed must be set to Yes</strong>
+            <p>Target FTE of <span x-text="fte"></span> is above 1.0 — more than one incumbent will sit in this single position record, so Multiple Holders Allowed has to be Yes, or the position can't actually carry the people it's funded for.</p>
+          </div>
+        </div>
+      </template>
+
+      <div class="rec-section" style="margin-top:30px; max-width:560px">
+        <h3><svg><use href="#i-book"/></svg> Common FTE values</h3>
+        <table class="sync-table">
+          <thead><tr><th>FTE</th><th>Hours / week</th><th>Multiple Holders</th></tr></thead>
+          <tbody>
+            <template x-for="v in referenceValues" :key="v">
+              <tr class="calc-ref-row" :class="{ 'is-current': fteNum === v }" @click="quickFill(v)">
+                <td x-text="v.toFixed(1)"></td>
+                <td x-text="hoursFor(v) + ' h'"></td>
+                <td><span class="badge" :class="v > 1 ? 'badge-warning' : 'badge-neutral'" x-text="v > 1 ? 'Required' : '\u2014'"></span></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin-top:24px">
+        <button class="btn btn-sm btn-secondary" @click="$store.nav.go('fields')">Open Field Reference Guide <svg><use href="#i-arrow-right"/></svg></button>
+      </p>
     </section>
 
   </main>
