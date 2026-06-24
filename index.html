@@ -270,7 +270,7 @@
           </template>
 
           <div class="rec-section">
-            <h3><svg><use href="#i-flow"/></svg> Approval chain — <span x-text="recommendation.stops.length"></span> stop<span x-text="recommendation.stops.length === 1 ? '' : 's'"></span></h3>
+            <h3><svg><use href="#i-flow"/></svg> Approval chain — <span x-text="recommendation.stops.length + ' stop' + (recommendation.stops.length === 1 ? '' : 's')"></span></h3>
             <div class="chain">
               <template x-for="(stop, i) in recommendation.stops" :key="i">
                 <span style="display:flex;align-items:stretch">
@@ -520,7 +520,7 @@
       <template x-if="chain">
         <div>
           <div class="rec-section">
-            <h3><svg><use href="#i-flow"/></svg> <span x-text="chain.stops.length"></span> approval stop<span x-text="chain.stops.length === 1 ? '' : 's'"></span></h3>
+            <h3><svg><use href="#i-flow"/></svg> <span x-text="chain.stops.length + ' approval stop' + (chain.stops.length === 1 ? '' : 's')"></span></h3>
             <div class="chain">
               <template x-for="(stop, i) in chain.stops" :key="i">
                 <span style="display:flex;align-items:stretch">
