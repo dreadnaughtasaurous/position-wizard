@@ -107,6 +107,9 @@
 }
 .rec-banner.is-create { background: linear-gradient(135deg, var(--success-bg), var(--bg-elv)); border: 1px solid rgba(5,150,105,0.2); }
 .rec-banner.is-amend  { background: linear-gradient(135deg, var(--info-bg), var(--bg-elv)); border: 1px solid rgba(124,58,237,0.2); }
+.rec-banner.is-transfer { background: linear-gradient(135deg, var(--warning-bg), var(--bg-elv)); border: 1px solid rgba(217,119,6,0.2); }
+.rec-banner.is-individual-variation { background: linear-gradient(135deg, var(--brand-soft), var(--bg-elv)); border: 1px solid rgba(52,81,178,0.25); }
+.rec-banner.is-deactivate { background: linear-gradient(135deg, var(--danger-bg), var(--bg-elv)); border: 1px solid rgba(192,57,43,0.22); }
 .rec-banner-icon {
   width: 54px; height: 54px;
   border-radius: var(--radius-lg);
@@ -116,9 +119,29 @@
 }
 .rec-banner.is-create .rec-banner-icon { background: var(--success); color: #fff; }
 .rec-banner.is-amend  .rec-banner-icon { background: var(--info); color: #fff; }
+.rec-banner.is-transfer .rec-banner-icon { background: var(--warning); color: #fff; }
+.rec-banner.is-individual-variation .rec-banner-icon { background: var(--brand-1); color: #fff; }
+.rec-banner.is-deactivate .rec-banner-icon { background: var(--danger); color: #fff; }
 .rec-banner-icon svg { width: 26px; height: 26px; }
 .rec-banner-text .eyebrow { font-size: var(--text-sm); font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2); }
 .rec-banner-text h2 { margin-top: 2px; }
+
+/* ── 1.2 — vacant-check / how-to-check bullet list shown inside a wizard question ── */
+.wizard-checksteps {
+  margin: 0 0 22px;
+  padding: 14px 16px 14px 36px;
+  background: var(--bg-soft);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.wizard-checksteps li {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
 
 .rec-section { margin-bottom: 30px; }
 .rec-section h3 { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }

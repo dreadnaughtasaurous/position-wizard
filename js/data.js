@@ -386,25 +386,55 @@ PW.APPROVAL_CHAINS = {
     noBC: [ROLE.manager, ROLE.hr, ROLE.finance, ROLE.chief, ROLE.ceo],
   },
   fte_decrease: {
+    headline: 'Manager approval only \u2014 Finance is just notified.',
     note: 'FTE decreases are fast-tracked regardless of a business case \u2014 just your 1-up / Cost Centre Manager, with Finance copied for visibility.',
     withBC: [ROLE.manager],
     noBC: [ROLE.manager],
   },
   classification: {
+    headline: 'A business case won\u2019t shorten this chain.',
     note: 'A business case makes no difference here \u2014 the Directorate Chief always reviews a classification change.',
     withBC: [ROLE.manager, ROLE.hr, ROLE.finance, ROLE.chief],
     noBC: [ROLE.manager, ROLE.hr, ROLE.finance, ROLE.chief],
   },
   title: {
+    headline: 'A business case won\u2019t shorten this chain.',
     note: 'A business case makes no difference to this chain \u2014 it is identical either way.',
     withBC: [ROLE.manager, ROLE.hr, ROLE.finance],
     noBC: [ROLE.manager, ROLE.hr, ROLE.finance],
   },
   other: {
+    headline: 'A business case won\u2019t shorten this chain.',
     note: 'A business case makes no difference to this chain \u2014 it is identical either way.',
     withBC: [ROLE.manager, ROLE.hr, ROLE.finance],
     noBC: [ROLE.manager, ROLE.hr, ROLE.finance],
   },
+};
+
+/* ── 1.2 — "Check for an existing vacant position first" gate ──────
+   Shown before any CREATE recommendation (and reused by the Transfer
+   branch). Without live SF data this can only be a prompt + manual
+   checklist, but it targets the #1 mistake named in Guide 2 ("Not
+   checking for existing vacant positions before creating a new
+   position \u2014 Result: unnecessary position proliferation, budget
+   confusion") and the ghost-position cost that follows from it. ── */
+PW.VACANT_CHECK = {
+  steps: [
+    'Open the Position Org Chart from your SuccessFactors homepage.',
+    'Search by the Title you need and the destination Cost Centre.',
+    'For any match, check its Pay Scale Group and Employee Status (Ongoing vs Fixed Term) \u2014 all four must line up with what you need.',
+    'If a vacant match exists, use it \u2014 recruit directly into it, or transfer someone in. Don\u2019t create a duplicate.',
+  ],
+};
+
+/* ── 1.5 — Canonical "safer alternative" action, shared by the
+      Synchronisation Risk Checker and the Decision Wizard's sync
+      warning so the recommended action never drifts out of sync
+      between the two. Sourced from Guide 6's "Safer Ways to Manage
+      Changes" table, row 1. ── */
+PW.SAFER_ALTERNATIVE = {
+  label: 'Use \u201cChange in Job or Compensation Information\u201d instead',
+  detail: 'Apply the change directly on the individual incumbent\u2019s record. It updates only that person, never touches the Position, and never risks the other incumbents.',
 };
 
 /* ── Real-world scenarios (used as contextual callouts) ── */
@@ -444,6 +474,18 @@ PW.SCENARIOS = [
     situation: 'An occupied position needs to be reclassified from Band 3 to Band 4.',
     action: 'Amend with extreme caution. Change Reason: Change Position Classification. Pay Scale Level will NOT synchronise to the incumbent \u2014 this is the highest payroll-risk change in the system. If the change really only applies to one individual rather than the structural role, use Change in Job & Compensation Information on that person\u2019s record instead.',
     matches: { path: 'amend', changeReason: 'classification', occupied: 'yes', syncFields: ['pay-scale-group'] },
+  },
+  {
+    id: 'G', title: 'A team member moving departments',
+    situation: 'A PSA Supervisor (1.0 FTE, Ongoing) is transferring from Nursing Administration to the Radiology PSA cost centre, same classification and FTE.',
+    action: 'Check the destination cost centre for a matching vacant position first. If one exists (1.0 FTE, Ongoing PSA Supervisor), note its Position Number and run a Job Information change to move the employee in \u2014 no Position edit at all. If nothing matches, the destination needs to create a new Same-Level position before the employee can transfer in. Either way, leave the original position alone \u2014 each department keeps its own positions.',
+    matches: { path: 'transfer' },
+  },
+  {
+    id: 'H', title: 'Retiring a vacant position',
+    situation: 'A position has sat vacant for some time and the FTE is needed elsewhere. There are no future-dated Job Information changes moving anyone into it.',
+    action: 'Deactivate it. Change Reason: Change Other Position Attributes \u2014 set Status to Inactive and add a comment explaining why. This only works while the position is genuinely vacant with nothing scheduled to move someone in; resolve any incumbent or pending transfer first. Once inactive, its FTE is freed up for reallocation.',
+    matches: { path: 'deactivate' },
   },
 ];
 

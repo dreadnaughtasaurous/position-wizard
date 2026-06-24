@@ -146,7 +146,57 @@ document.addEventListener('alpine:init', () => {
 
   /* ============================================================
      FIELD REFERENCE
+     ------------------------------------------------------------
+     1.4 — typo-tolerant search. Network access in this environment
+     can't fetch an external library (Fuse.js / microfuzz), so this is
+     a small hand-rolled equivalent: zero-dependency, self-hosted by
+     definition, and tuned for this exact dataset (36 short field
+     names). It does two things substring matching can't:
+       1. Tokenises the query so multi-word searches ("pay scale")
+          match across name + does + enter text with AND semantics.
+       2. Falls back to Levenshtein distance against individual words
+          in the field name/category, so single typos like
+          "imunisation" or "paysacle" still surface the right field.
      ============================================================ */
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
+  function fuzzyTokenMatch(word, token) {
+    if (!word || !token) return false;
+    if (word.includes(token)) return true;
+    const maxDist = token.length <= 4 ? 1 : token.length <= 8 ? 2 : 3;
+    if (Math.abs(word.length - token.length) > maxDist + 2) return false;
+    return levenshtein(word, token) <= maxDist;
+  }
+
+  // Does this one query token match anywhere in the field's searchable
+  // text? Substring match across the long-form text (does/enter), plus
+  // fuzzy word-level match against name/category (where typos actually
+  // happen — nobody mistypes inside a sentence they're reading, just
+  // inside the short term they're trying to recall).
+  function fieldMatchesToken(f, token) {
+    if (f.does.toLowerCase().includes(token) || f.enter.toLowerCase().includes(token)) return true;
+    const words = (f.name + ' ' + f.category).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    // Typos often mash two words together ("paysacle" for "Pay Scale"),
+    // so fuzzy-match against adjacent-word concatenations too, not just
+    // single words.
+    const bigrams = words.slice(0, -1).map((w, i) => w + words[i + 1]);
+    return words.concat(bigrams).some(w => fuzzyTokenMatch(w, token));
+  }
+
   Alpine.data('fieldRef', () => ({
     query: '',
     activeCategory: 'All',
@@ -154,14 +204,12 @@ document.addEventListener('alpine:init', () => {
     categories: ['All', ...PW.CATEGORIES],
 
     get results() {
-      const q = this.query.trim().toLowerCase();
+      const tokens = this.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       return PW.FIELDS.filter(f => {
         const catOk = this.activeCategory === 'All' || f.category === this.activeCategory;
         if (!catOk) return false;
-        if (!q) return true;
-        return f.name.toLowerCase().includes(q) ||
-          f.does.toLowerCase().includes(q) ||
-          f.category.toLowerCase().includes(q);
+        if (!tokens.length) return true;
+        return tokens.every(t => fieldMatchesToken(f, t));
       });
     },
 
@@ -202,26 +250,32 @@ document.addEventListener('alpine:init', () => {
           text: this.occupied === 'no'
             ? 'This position is vacant \u2014 synchronisation is not relevant. Make your changes directly on the position; there are no incumbent records to push to.'
             : 'A future-dated vacancy has no current incumbent yet \u2014 synchronisation will not apply until someone actually occupies the position.',
+          action: null,
         };
       }
       if (this.hasPayScaleRisk) {
         return {
           tone: 'danger',
-          text: 'High risk: Pay Scale Type/Area/Group will synchronise, but Pay Scale Level will NOT. Incumbents could end up with a classification and pay point that no longer align, causing payroll processing errors. Verify every incumbent\u2019s current Pay Scale Level before synchronising \u2014 if this change really only applies to one person rather than the whole structural role, use Change in Job & Compensation Information on that individual\u2019s record instead.',
+          text: 'High risk: Pay Scale Type/Area/Group will synchronise, but Pay Scale Level will NOT. Incumbents could end up with a classification and pay point that no longer align, causing payroll processing errors. Verify every incumbent\u2019s current Pay Scale Level before synchronising.',
+          // 1.5 — the safer alternative as a first-class recommended
+          // action, not just a clause buried at the end of the prose.
+          action: PW.SAFER_ALTERNATIVE,
         };
       }
       if (this.selected.length === 0) {
-        return { tone: 'info', text: 'Select the fields you\u2019re changing above to see whether they will synchronise to incumbents.' };
+        return { tone: 'info', text: 'Select the fields you\u2019re changing above to see whether they will synchronise to incumbents.', action: null };
       }
       if (this.notSyncing.length > 0 && this.syncing.length === 0) {
         return {
           tone: 'warning',
-          text: 'None of the fields you\u2019ve selected synchronise automatically. If every incumbent needs this update, you\u2019ll need to update each of their Job Information records individually \u2014 the Position-level change alone will not reach them.',
+          text: 'None of the fields you\u2019ve selected synchronise automatically. If every incumbent needs this update, the Position-level change alone will not reach them.',
+          action: { label: 'Update each incumbent individually', detail: 'Use \u201cChange in Job or Compensation Information\u201d on each affected employee\u2019s record \u2014 there\u2019s no Position-level shortcut for these fields.' },
         };
       }
       return {
         tone: 'success',
-        text: 'Safe to synchronise \u2014 as long as every current incumbent genuinely needs this change. If it actually applies to only one person rather than the whole position, use Change in Job & Compensation Information on their individual record instead of synchronising.',
+        text: 'Safe to synchronise \u2014 as long as every current incumbent genuinely needs this exact change.',
+        action: { label: 'Synchronise \u2014 if every incumbent genuinely needs it', detail: 'If even one incumbent doesn\u2019t need this change, use \u201cChange in Job or Compensation Information\u201d on their record instead of synchronising for everyone.' },
       };
     },
   }));
@@ -252,9 +306,9 @@ document.addEventListener('alpine:init', () => {
       const entry = PW.APPROVAL_CHAINS[this.chainKey];
       if (this.requiresBCQuestion) {
         if (!this.businessCase) return null;
-        return { stops: this.businessCase === 'yes' ? entry.withBC : entry.noBC, note: entry.note, key: this.chainKey };
+        return { stops: this.businessCase === 'yes' ? entry.withBC : entry.noBC, note: entry.note, headline: entry.headline || null, key: this.chainKey };
       }
-      return { stops: entry.noBC, note: entry.note, key: this.chainKey };
+      return { stops: entry.noBC, note: entry.note, headline: entry.headline || null, key: this.chainKey };
     },
   }));
 });

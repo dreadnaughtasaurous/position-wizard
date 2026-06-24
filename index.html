@@ -49,6 +49,9 @@
 <symbol id="i-alert-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5.5M12 16.3v.1"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></symbol>
 <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M4.6 15a8 8 0 0 0 14.2 2.7M19.4 9A8 8 0 0 0 5.2 6.3"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 12l-4 4 4 4"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></symbol>
+<symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
 </defs>
 </svg>
 
@@ -124,10 +127,10 @@
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-home"/></svg> Position management, made simple</div>
         <h1>What do you need to do?</h1>
-        <p class="lede">Pick a tool below. The Decision Wizard is the best place to start if you’re not sure whether you need to create or amend — everything else here is a reference you can dip into any time.</p>
+        <p class="lede">Pick a tool below. The Decision Wizard is the best place to start if you’re not sure what to do — everything else here is a reference you can dip into any time.</p>
       </div>
 
-      <!-- Signature graphic: the Create / Amend fork this whole tool exists to resolve -->
+      <!-- Signature graphic: the branching choice this whole tool exists to resolve -->
       <svg viewBox="0 0 600 150" style="width:100%; max-width:560px; height:auto; margin:6px 0 34px; display:block;" aria-hidden="true">
         <path d="M40,75 L230,75" stroke="var(--divider)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
         <path d="M230,75 C320,75 350,32 480,32" stroke="var(--success)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
@@ -138,13 +141,14 @@
         <text x="40" y="58" font-size="13" font-weight="600" fill="var(--text-2)" font-family="var(--font-base)">A change you need to make</text>
         <text x="494" y="36" font-size="14" font-weight="700" fill="var(--success)" font-family="var(--font-base)">Create</text>
         <text x="494" y="122" font-size="14" font-weight="700" fill="var(--info)" font-family="var(--font-base)">Amend</text>
+        <text x="290" y="148" font-size="11" font-weight="600" fill="var(--text-3)" font-family="var(--font-base)">+ Transfer · Individual variation · Deactivate</text>
       </svg>
 
       <div class="tools-grid">
         <button class="tool-card" @click="$store.nav.go('wizard')">
           <div class="tool-card-icon" style="background:var(--brand-soft); color:var(--brand-1)"><svg><use href="#i-branch"/></svg></div>
           <h3>Decision Wizard</h3>
-          <p>Answer a few quick questions and get a tailored recommendation — Create or Amend, the right Change Reason, the fields to fill in, and the approval chain to expect.</p>
+          <p>Answer a few quick questions and get a tailored recommendation — Create, Amend, Transfer, Individual variation, or Deactivate — the right Change Reason, the fields to fill in, and the approval chain to expect.</p>
           <span class="tool-card-cta">Start the wizard <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
@@ -191,6 +195,9 @@
               <div class="wizard-question-tag" x-text="question?.tag"></div>
               <h2 x-text="question?.title"></h2>
               <p class="wizard-sub" x-show="question?.sub" x-text="question?.sub"></p>
+              <ul class="wizard-checksteps" x-show="question?.checkSteps">
+                <template x-for="(cs, i) in (question?.checkSteps || [])" :key="i"><li x-text="cs"></li></template>
+              </ul>
 
               <!-- Single-select -->
               <div class="choice-grid" x-show="question?.type === 'single' || question?.type === 'info'">
@@ -242,12 +249,12 @@
             <div class="pt-meta">Position Wizard (unofficial reference tool) · Austin Health</div>
           </div>
 
-          <div class="rec-banner" :class="recommendation.path === 'create' ? 'is-create' : 'is-amend'">
+          <div class="rec-banner" :class="'is-' + recommendation.path">
             <div class="rec-banner-icon">
-              <svg style="color:#fff"><use :href="recommendation.path === 'create' ? '#i-branch' : '#i-refresh'"/></svg>
+              <svg style="color:#fff"><use :href="recommendation.bannerIcon"/></svg>
             </div>
             <div class="rec-banner-text">
-              <div class="eyebrow" x-text="recommendation.path === 'create' ? 'Create a new position' : 'Amend the existing position'"></div>
+              <div class="eyebrow" x-text="recommendation.bannerEyebrow"></div>
               <h2 x-text="recommendation.actionLabel"></h2>
             </div>
           </div>
@@ -270,12 +277,18 @@
               <div>
                 <strong x-text="recommendation.syncWarning.risky ? 'High payroll risk — read before synchronising' : 'Occupied position'"></strong>
                 <p x-text="recommendation.syncWarning.text"></p>
+                <template x-if="recommendation.syncWarning.action">
+                  <div class="action-cta">
+                    <svg><use href="#i-arrow-right"/></svg>
+                    <div><strong x-text="recommendation.syncWarning.action.label"></strong><p x-text="recommendation.syncWarning.action.detail"></p></div>
+                  </div>
+                </template>
                 <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="$store.nav.go('sync')">Open Synchronisation Risk Checker <svg><use href="#i-arrow-right"/></svg></button></p>
               </div>
             </div>
           </template>
 
-          <div class="rec-section">
+          <div class="rec-section" x-show="recommendation.stops.length">
             <h3><svg><use href="#i-flow"/></svg> Approval chain — <span x-text="recommendation.stops.length + ' stop' + (recommendation.stops.length === 1 ? '' : 's')"></span></h3>
             <div class="chain">
               <template x-for="(stop, i) in recommendation.stops" :key="i">
@@ -288,7 +301,24 @@
                 </span>
               </template>
             </div>
-            <p class="field-hint" x-text="recommendation.chainNote"></p>
+            <template x-if="recommendation.chainHeadline">
+              <div class="callout callout-info" style="margin-top:14px">
+                <svg><use href="#i-info"/></svg>
+                <div><strong x-text="recommendation.chainHeadline"></strong><p x-text="recommendation.chainNote"></p></div>
+              </div>
+            </template>
+            <p class="field-hint" x-show="!recommendation.chainHeadline" x-text="recommendation.chainNote"></p>
+          </div>
+
+          <div class="rec-section" x-show="!recommendation.stops.length">
+            <h3><svg><use href="#i-flow"/></svg> Approval chain</h3>
+            <div class="callout callout-info">
+              <svg><use href="#i-info"/></svg>
+              <div>
+                <strong>Not a Position-level change</strong>
+                <p>This doesn’t touch the Position record, so the position-approval chain shown elsewhere in this tool doesn’t apply here — it follows its own, separate routing in SuccessFactors.</p>
+              </div>
+            </div>
           </div>
 
           <div class="rec-section">
@@ -299,7 +329,7 @@
                   <div class="checklist-item">
                     <span class="checklist-num" x-text="i + 1"></span>
                     <div class="checklist-body">
-                      <strong x-text="item.fieldId ? PW.FIELDS.find(f => f.id === item.fieldId)?.name : 'Also check'"></strong>
+                      <strong x-text="item.title || (item.fieldId ? PW.FIELDS.find(f => f.id === item.fieldId)?.name : 'Also check')"></strong>
                       <p x-text="item.customNote || PW.FIELDS.find(f => f.id === item.fieldId)?.enter"></p>
                     </div>
                   </div>
@@ -314,7 +344,7 @@
               <template x-for="(s, i) in recommendation.steps" :key="i">
                 <div class="step-item">
                   <span class="step-item-num"></span>
-                  <div class="step-item-body"><strong x-text="s.title"></strong><p x-text="s.body"></p></div>
+                  <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-text="s.body"></p></div>
                 </div>
               </template>
             </div>
@@ -377,6 +407,13 @@
               <div>
                 <h5>What to enter</h5>
                 <p x-text="f.enter"></p>
+              </div>
+              <div class="callout callout-warning" x-show="f.id === 'comment'" style="margin:2px 0">
+                <svg><use href="#i-alert-circle"/></svg>
+                <div>
+                  <strong>Two different comment boxes — don’t mix them up</strong>
+                  <p>This field is on the <strong>Position record itself</strong> and is visible to anyone in the organisation who can view that position — never put anything confidential here. Notes meant for your <strong>approvers</strong> (justification, urgency, context) go in a separate comment box shown after you click Submit. Writing approver notes in this field means your approvers may never see them.</p>
+                </div>
               </div>
               <div x-show="f.mistakes && f.mistakes.length">
                 <h5>Common mistakes</h5>
@@ -450,6 +487,12 @@
                 recommendation.tone === 'success' ? 'Safe to synchronise' : 'Heads up'
               "></strong>
               <p x-text="recommendation.text"></p>
+              <template x-if="recommendation.action">
+                <div class="action-cta">
+                  <svg><use href="#i-arrow-right"/></svg>
+                  <div><strong x-text="recommendation.action.label"></strong><p x-text="recommendation.action.detail"></p></div>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -538,7 +581,13 @@
                 </span>
               </template>
             </div>
-            <p class="field-hint" x-text="chain.note"></p>
+            <template x-if="chain.headline">
+              <div class="callout callout-info" style="margin-top:14px">
+                <svg><use href="#i-info"/></svg>
+                <div><strong x-text="chain.headline"></strong><p x-text="chain.note"></p></div>
+              </div>
+            </template>
+            <p class="field-hint" x-show="!chain.headline" x-text="chain.note"></p>
           </div>
 
           <div class="callout callout-info">

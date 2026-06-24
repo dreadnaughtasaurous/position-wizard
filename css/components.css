@@ -146,6 +146,23 @@
 }
 .callout-scenario svg { color: var(--brand-1); }
 
+/* ── 1.5 — recommended-action CTA. Used inside callouts (Sync Checker,
+      wizard sync warning) to make "the safer alternative" a distinct,
+      button-like recommendation rather than a clause buried in prose. ── */
+.action-cta {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--bg-elv);
+  border: 1.5px solid var(--brand-1);
+  border-radius: var(--radius-md);
+}
+.action-cta svg { width: 16px; height: 16px; color: var(--brand-1); flex-shrink: 0; margin-top: 2px; }
+.action-cta strong { display: block; font-size: var(--text-base); color: var(--text-1); }
+.action-cta p { font-size: var(--text-sm); color: var(--text-2); margin-top: 2px; line-height: 1.5; }
+
 /* ── Forms ── */
 .field-label {
   display: block;

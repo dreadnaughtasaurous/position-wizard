@@ -27,7 +27,15 @@
     return [...withField, ...withoutField];
   }
 
+  /* Five possible endpoints, not two. Priority order matters: a
+     transfer/individual-variation/deactivate outcome is decided by its
+     own branch and should win outright over the generic create/amend
+     fallback, even if some create/amend answers also happen to be
+     present in session state from earlier navigation. */
   function derivePath(answers) {
+    if (answers.transferOutcome) return 'transfer';
+    if (answers.individualChange) return 'individual-variation';
+    if (answers.deactivateReady === 'yes') return 'deactivate';
     if (answers.employeeStatusChange) return 'create';
     return answers.intent === 'change' ? 'amend' : 'create';
   }
@@ -37,12 +45,89 @@
     switch (step) {
       case 'start':
         return {
-          tag: 'Let\u2019s figure this out', title: 'What are you trying to do?', sub: null, type: 'single', key: 'intent',
+          tag: 'Let\u2019s figure this out', title: 'Is this about the position itself, or about one specific employee?',
+          sub: 'This decides which path we take you down.', type: 'single', key: 'scope',
+          options: [
+            { value: 'position', label: 'The position itself', sub: 'Creating one, changing its details, or retiring it from the structure.', next: 'position-intent' },
+            { value: 'person', label: 'One specific employee', sub: 'Moving them somewhere else, or changing their own hours, classification, or status.', next: 'person-moving' },
+          ],
+        };
+
+      case 'position-intent':
+        return {
+          tag: 'About the position', title: 'What are you trying to do?', sub: null, type: 'single', key: 'intent',
           options: [
             { value: 'new', label: 'Add a brand-new position to the structure', sub: 'A role that doesn\u2019t exist yet anywhere in your area.', next: 'create-duplicate-check' },
             { value: 'change', label: 'Change something about a position that already exists', sub: 'FTE, title, reporting line, cost centre, classification, or similar.', next: 'occupied' },
+            { value: 'deactivate', label: 'Retire a position from the structure', sub: 'Remove it entirely and free up its budgeted FTE for reallocation.', next: 'deactivate-check' },
             { value: 'unsure', label: 'I\u2019m not sure which one I need', sub: 'Walk me through the fundamentals instead.', next: 'fundamentals' },
           ],
+        };
+
+      case 'person-moving':
+        return {
+          tag: 'About this employee', title: 'Are you moving them to a different position?',
+          sub: 'This could be a transfer to another cost centre, ward, or department.',
+          type: 'single', key: 'personMoving',
+          options: [
+            { value: 'yes', label: 'Yes \u2014 they\u2019re moving to a different position', next: 'transfer-vacant-check' },
+            { value: 'no', label: 'No \u2014 their role stays the same, just their own details are changing', sub: 'Hours, classification, or employment status for this one person.', next: 'individual-scope-check' },
+          ],
+        };
+
+      case 'individual-scope-check':
+        return {
+          tag: 'One more check', title: 'Should this change apply only to this person, or to anyone who ever holds this position?',
+          sub: 'If it\u2019s genuinely just this individual\u2019s circumstances, you don\u2019t need to touch the Position at all \u2014 that keeps the change localised and avoids affecting any other incumbent.',
+          type: 'single', key: 'individualScope',
+          options: [
+            { value: 'individual', label: 'Just this person', sub: 'E.g. their own hours, grade, or employment status.', next: 'individual-variation-detail' },
+            { value: 'structural', label: 'Anyone in this position, going forward', sub: 'It\u2019s really a structural change to the role itself.', next: 'occupied', extra: { intent: 'change' } },
+          ],
+        };
+
+      case 'individual-variation-detail':
+        return {
+          tag: 'Individual variation', title: 'What\u2019s changing for them?', sub: null,
+          type: 'single', key: 'individualChange',
+          options: [
+            { value: 'hours', label: 'Their hours or working pattern', next: 'recommendation' },
+            { value: 'classification', label: 'Their classification or pay scale level', next: 'recommendation' },
+            { value: 'employment-status', label: 'Their Employment Status', sub: 'E.g. Part Time \u2194 Full Time.', next: 'recommendation' },
+            { value: 'other', label: 'Something else personal to their record', next: 'recommendation' },
+          ],
+        };
+
+      case 'transfer-vacant-check':
+        return {
+          tag: 'Before transferring', title: 'Does a matching position already exist where they\u2019re moving to?',
+          sub: 'Matching means the same Title, Pay Scale Group, Employee Status, AND Cost Centre at the destination \u2014 check the Position Org Chart to be sure.',
+          checkSteps: PW.VACANT_CHECK.steps,
+          type: 'single', key: 'transferOutcome',
+          options: [
+            { value: 'vacant-exists', label: 'Yes \u2014 and it\u2019s currently vacant', next: 'recommendation' },
+            { value: 'occupied-exists', label: 'Yes \u2014 but someone is already in it', sub: 'Only works as a genuine job-share with room left in Target FTE.', next: 'recommendation' },
+            { value: 'needs-create', label: 'No matching position exists there', sub: 'A new position needs to be created first, then the employee transferred in.', next: 'create-confirm', extra: { intent: 'new' } },
+          ],
+        };
+
+      case 'deactivate-check':
+        return {
+          tag: 'Before deactivating', title: 'Is the position currently vacant, with no future-dated changes moving someone into it?',
+          sub: 'Both conditions must be true \u2014 SuccessFactors won\u2019t let you deactivate otherwise.',
+          type: 'single', key: 'deactivateReady',
+          options: [
+            { value: 'yes', label: 'Yes \u2014 it\u2019s vacant and nothing is scheduled to move someone in', next: 'recommendation' },
+            { value: 'no', label: 'No \u2014 it\u2019s occupied, or someone has a future start date set', next: 'deactivate-blocked' },
+          ],
+        };
+
+      case 'deactivate-blocked':
+        return {
+          tag: 'Not yet', title: 'You\u2019ll need to resolve the incumbent first',
+          sub: 'SuccessFactors won\u2019t deactivate a position that\u2019s occupied, or that has a future-dated Job Information change moving someone into it. Transfer or resolve that first, then come back.',
+          type: 'info', key: 'acknowledgedBlocked',
+          options: [{ value: 'transfer', label: 'Take me to the transfer flow for that employee', next: 'person-moving' }],
         };
 
       case 'fundamentals':
@@ -61,12 +146,13 @@
 
       case 'create-duplicate-check':
         return {
-          tag: 'Quick check', title: 'Does a position already exist with the exact same Title, Pay Scale Group, Employee Status, AND Cost Centre?',
-          sub: 'If all four match an existing position, you don\u2019t need a new one \u2014 you\u2019d amend that one instead.',
+          tag: 'Before you create \u2014 quick check', title: 'Have you checked the Position Org Chart for an existing vacant position that already matches?',
+          sub: 'Matching means the same Title, Pay Scale Group, Employee Status, AND Cost Centre. This is the single biggest cause of duplicate \u201cghost\u201d positions across the org \u2014 always worth the two minutes.',
+          checkSteps: PW.VACANT_CHECK.steps,
           type: 'single', key: 'duplicateExists',
           options: [
-            { value: 'yes', label: 'Yes, an identical position already exists', next: 'duplicate-redirect' },
-            { value: 'no', label: 'No \u2014 at least one of those differs, or nothing similar exists', next: 'create-confirm' },
+            { value: 'yes', label: 'Yes, a vacant position already matches', next: 'duplicate-redirect' },
+            { value: 'no', label: 'No \u2014 I\u2019ve checked, and at least one of those differs or nothing similar exists', next: 'create-confirm' },
           ],
         };
 
@@ -150,28 +236,69 @@
   }
 
   /* ---------- Checklist builder ---------- */
+
+  // Shared by the CREATE path and the "Transfer — needs a new position
+  // first" sub-path, so the two never drift apart.
+  function buildCreateItems(answers) {
+    const items = [];
+    const add = (fieldId, customNote) => items.push({ fieldId, customNote });
+    add('change-reason', 'Select \u201cCreate New Position\u201d via the template position\u2019s Actions menu.');
+    add('position-title'); add('employee-status'); add('employment-status');
+    add('cost-centre'); add('directorate'); add('division'); add('department');
+    add('pay-scale-type'); add('pay-scale-area');
+    add('pay-scale-group', 'Select the Year 1 / Level 1 base group \u2014 always, regardless of who you expect to recruit.');
+    add('pay-scale-level', 'Select Level 1.');
+    add('target-fte'); add('multiple-holders', 'Only needs to be Yes if Target FTE is above 1.0, or for a genuine job-share.');
+    add('parent-position', 'Verify this rather than trusting the auto-populated value.');
+    add('start-date');
+    add('business-case-q');
+    if (answers.businessCase === 'yes') { add('business-case-number'); add('business-case-attachment'); }
+    return items;
+  }
+
   function buildChecklist(path, changeReasonId, answers) {
     const items = [];
     const add = (fieldId, customNote) => items.push({ fieldId, customNote });
+    const addCustom = (title, customNote) => items.push({ fieldId: null, title, customNote });
 
-    add('change-reason', path === 'create'
-      ? 'Select \u201cCreate New Position\u201d via the template position\u2019s Actions menu.'
-      : `Select \u201c${PW.CHANGE_REASONS.find(c => c.id === changeReasonId).label}\u201d.`);
+    if (path === 'create') return sortChecklist(buildCreateItems(answers));
 
-    if (path === 'create') {
-      add('position-title'); add('employee-status'); add('employment-status');
-      add('cost-centre'); add('directorate'); add('division'); add('department');
-      add('pay-scale-type'); add('pay-scale-area');
-      add('pay-scale-group', 'Select the Year 1 / Level 1 base group \u2014 always, regardless of who you expect to recruit.');
-      add('pay-scale-level', 'Select Level 1.');
-      add('target-fte'); add('multiple-holders', 'Only needs to be Yes if Target FTE is above 1.0, or for a genuine job-share.');
-      add('parent-position', 'Verify this rather than trusting the auto-populated value.');
-      add('start-date');
-      add('business-case-q');
-      if (answers.businessCase === 'yes') { add('business-case-number'); add('business-case-attachment'); }
+    if (path === 'transfer') {
+      if (answers.transferOutcome === 'needs-create') {
+        const sorted = sortChecklist(buildCreateItems(answers));
+        sorted.push({ fieldId: null, title: 'Then transfer the employee in', customNote: 'Once the new position is approved and active, run a Job Information Change on the employee to move them into it \u2014 don\u2019t recreate their employment record.' });
+        return sorted;
+      }
+      if (answers.transferOutcome === 'occupied-exists') {
+        addCustom('Confirm Multiple Holders Allowed', 'Check the existing position\u2019s configuration \u2014 this must already be Yes, or this isn\u2019t a safe transfer target.');
+        addCustom('Check remaining Target FTE capacity', 'There must be room left on top of the current incumbent(s) for this employee.');
+        addCustom('If it doesn\u2019t job-share', 'Create a new Same-Level Position at the destination instead, then transfer the employee into that.');
+        return items;
+      }
+      // vacant-exists
+      addCustom('Find the Position Number', 'Open the Position Org Chart, locate the matching vacant position, and record its Position Number.');
+      addCustom('Confirm the fundamentals truly match', 'Title, Pay Scale Group, Employee Status (Ongoing/Fixed Term), and Cost Centre must all line up \u2014 don\u2019t transfer in on a near-match.');
+      addCustom('Run a Job Information Change', 'On the employee\u2019s record, not the Position \u2014 this updates their reporting line, cost centre, and classification in one action.');
+      addCustom('Leave the old position alone', 'Don\u2019t amend their previous position to \u201cbecome\u201d this one \u2014 each department keeps its own position records.');
+      return items;
+    }
+
+    if (path === 'individual-variation') {
+      addCustom('Open the employee\u2019s record, not the Position', 'Navigate to their profile \u2192 Job Information \u2192 Change in Job or Compensation Information.');
+      addCustom('Select the matching variation reason', 'Choose the reason that matches what\u2019s actually changing \u2014 hours, classification, or employment status.');
+      addCustom('Leave the Position record untouched', 'Editing the Position instead risks pushing the same change onto every other incumbent.');
+      return items;
+    }
+
+    if (path === 'deactivate') {
+      add('change-reason', 'Select \u201cChange Other Position Attributes\u201d.');
+      add('status', 'Change from Active to Inactive.');
+      add('comment', 'Explain why you\u2019re deactivating \u2014 this is visible to anyone viewing the position.');
       return sortChecklist(items);
     }
 
+    // amend
+    add('change-reason', `Select \u201c${PW.CHANGE_REASONS.find(c => c.id === changeReasonId).label}\u201d.`);
     if (changeReasonId === 'fte') {
       add('target-fte');
       add('multiple-holders', 'Must be Yes if the new Target FTE is above 1.0.');
@@ -200,23 +327,69 @@
   }
 
   /* ---------- SuccessFactors step-by-step builder ---------- */
-  function buildSteps(path, changeReasonId, answers) {
+  function buildCreateSteps(answers) {
     const steps = [];
-    if (path === 'create') {
-      if (answers.createType === 'same-level') {
-        steps.push({ title: 'Open the existing matching position', body: 'Find it in the Position Org Chart \u2014 this is the position you\u2019re duplicating.' });
-        steps.push({ title: 'Actions \u2192 Create Same-Level Position', body: 'Most organisational fields copy across automatically from the template.' });
-      } else {
-        steps.push({ title: 'Open the manager/parent position', body: 'Find the position this new role will report to.' });
-        steps.push({ title: 'Actions \u2192 Create Lower-Level Position', body: 'This sets up the new role one level beneath the position you opened.' });
+    if (answers.createType === 'same-level') {
+      steps.push({ title: 'Open the existing matching position', body: 'Find it in the Position Org Chart \u2014 this is the position you\u2019re duplicating.' });
+      steps.push({ title: 'Actions \u2192 Create Same-Level Position', body: 'Most organisational fields copy across automatically from the template.' });
+    } else {
+      steps.push({ title: 'Open the manager/parent position', body: 'Find the position this new role will report to.' });
+      steps.push({ title: 'Actions \u2192 Create Lower-Level Position', body: 'This sets up the new role one level beneath the position you opened.' });
+    }
+    steps.push({ title: 'Set Change Reason to Create New Position', body: 'This unlocks the full field set for a brand-new position.' });
+    steps.push({ title: 'Work through the field checklist above', body: 'Pay particular attention to Target FTE, Parent Position, and the Pay Scale fields \u2014 always Year 1 / Level 1.' });
+    if (answers.businessCase === 'yes') steps.push({ title: 'Attach your business case', body: 'Upload the Finance-approved document and enter its reference number.' });
+    steps.push({ title: 'Submit', body: 'Note the new Position Number immediately \u2014 you\u2019ll need it to find this position again, and no homepage notification appears once it\u2019s approved.' });
+    return steps;
+  }
+
+  function buildSteps(path, changeReasonId, answers) {
+    if (path === 'create') return buildCreateSteps(answers);
+
+    if (path === 'transfer') {
+      if (answers.transferOutcome === 'needs-create') {
+        const steps = buildCreateSteps(answers);
+        steps.push({ title: 'Transfer the employee in', body: 'After approval, open their record \u2192 Job Information \u2192 Change in Job or Compensation Information \u2192 select the new Position Number.' });
+        return steps;
       }
-      steps.push({ title: 'Set Change Reason to Create New Position', body: 'This unlocks the full field set for a brand-new position.' });
-      steps.push({ title: 'Work through the field checklist above', body: 'Pay particular attention to Target FTE, Parent Position, and the Pay Scale fields \u2014 always Year 1 / Level 1.' });
-      if (answers.businessCase === 'yes') steps.push({ title: 'Attach your business case', body: 'Upload the Finance-approved document and enter its reference number.' });
-      steps.push({ title: 'Submit', body: 'Note the new Position Number immediately \u2014 you\u2019ll need it to find this position again, and no homepage notification appears once it\u2019s approved.' });
-      return steps;
+      if (answers.transferOutcome === 'occupied-exists') {
+        return [
+          { title: 'Open the existing position', body: 'Confirm Multiple Holders Allowed is Yes and check remaining Target FTE capacity.' },
+          { title: 'If there\u2019s room', body: 'Open the employee\u2019s record \u2192 Job Information \u2192 Change in Job or Compensation Information \u2192 select this Position Number.' },
+          { title: 'If there isn\u2019t room', body: 'Create a new Same-Level position at the destination instead, then transfer the employee into that one.' },
+        ];
+      }
+      return [
+        { title: 'Find the matching position', body: 'Search the Position Org Chart by Title and Cost Centre at the destination.' },
+        { title: 'Note the Position Number', body: 'You\u2019ll need it for the Job Information Change.' },
+        { title: 'Open the employee\u2019s record', body: 'Navigate to their profile, then Job Information.' },
+        { title: 'Select Change in Job or Compensation Information', body: 'Choose the transfer reason and enter the new Position Number.' },
+        { title: 'Submit', body: 'This follows its own approval routing \u2014 separate from the Position-approval chain described elsewhere in this tool.' },
+      ];
     }
 
+    if (path === 'individual-variation') {
+      return [
+        { title: 'Open the employee\u2019s profile', body: 'Search for them directly rather than going through the Position Org Chart.' },
+        { title: 'Job Information \u2192 Take Action \u2192 Change in Job or Compensation Information', body: 'This is a person-level transaction, separate from any Position edit.' },
+        { title: 'Enter the new values', body: 'Only what\u2019s actually changing for this person \u2014 hours, classification, or employment status.' },
+        { title: 'Submit', body: 'This follows its own approval routing \u2014 separate from the Position approval chain described elsewhere in this tool.' },
+      ];
+    }
+
+    if (path === 'deactivate') {
+      return [
+        { title: 'Open the position', body: 'Find it via the Position Org Chart.' },
+        { title: 'Show Details \u2192 Edit', body: 'Enter the date this should take effect as the Effective Date.' },
+        { title: 'Set Change Reason to Change Other Position Attributes', body: null },
+        { title: 'Change Status from Active to Inactive', body: null },
+        { title: 'Add a comment explaining why', body: 'Required context for HR Services and your Finance Business Partner \u2014 remember this comment is visible to anyone viewing the position.' },
+        { title: 'Submit for approval', body: 'Follows the standard 3-stop \u201cOther Attributes\u201d chain \u2014 manager, HR Services, Finance Business Partner.' },
+      ];
+    }
+
+    // amend
+    const steps = [];
     steps.push({ title: 'Open the existing position', body: 'Search for it by Position Number, or find it in the Position Org Chart.' });
     steps.push({ title: `Set Change Reason to \u201c${PW.CHANGE_REASONS.find(c => c.id === changeReasonId).label}\u201d`, body: 'This unlocks only the fields relevant to this type of change.' });
     steps.push({ title: 'Work through the field checklist above', body: 'Only the unlocked fields for this Change Reason are editable.' });
@@ -230,27 +403,52 @@
     return steps;
   }
 
+  /* ---------- Recommendation-banner metadata ----------
+     Keeps the path → eyebrow/icon mapping in one place so index.html
+     never needs a five-way ternary chain. */
+  const BANNER_META = {
+    create: { eyebrow: 'Create a new position', icon: '#i-branch' },
+    amend: { eyebrow: 'Amend the existing position', icon: '#i-refresh' },
+    transfer: { eyebrow: 'Transfer to another position', icon: '#i-swap' },
+    'individual-variation': { eyebrow: 'Individual variation \u2014 not a Position edit', icon: '#i-user' },
+    deactivate: { eyebrow: 'Deactivate the position', icon: '#i-power' },
+  };
+
+  const INDIVIDUAL_DETAIL = {
+    hours: 'You\u2019re only changing this one person\u2019s hours or working pattern \u2014 update it on their Job Information record. Editing the Position would change it for every incumbent.',
+    classification: 'You\u2019re only reclassifying this one person \u2014 update it on their Job Information record. Editing the Position\u2019s Pay Scale fields would change it for every incumbent.',
+    'employment-status': 'You\u2019re only changing this one person\u2019s Employment Status \u2014 update it on their Job Information record, not the Position.',
+    other: 'This is specific to this one person\u2019s record \u2014 use a Change in Job or Compensation Information rather than editing the Position.',
+  };
+
   /* ---------- Full recommendation ---------- */
   function buildRecommendation(answers) {
     const path = derivePath(answers);
-    let changeReasonId, chainKey;
+    let changeReasonId = null, chainKey = null, changeReasonDef = null;
 
     if (path === 'create') {
       changeReasonId = 'create'; chainKey = 'create';
-    } else {
+      changeReasonDef = PW.CHANGE_REASONS.find(c => c.id === 'create');
+    } else if (path === 'amend') {
       changeReasonId = answers.whatChanging || 'other';
       chainKey = changeReasonId === 'fte'
         ? (answers.fteDirection === 'decrease' ? 'fte_decrease' : 'fte_increase')
         : changeReasonId;
+      changeReasonDef = PW.CHANGE_REASONS.find(c => c.id === changeReasonId);
+    } else if (path === 'deactivate') {
+      changeReasonId = 'other'; chainKey = 'other';
+      changeReasonDef = PW.CHANGE_REASONS.find(c => c.id === 'other');
+    } else if (path === 'transfer' && answers.transferOutcome === 'needs-create') {
+      changeReasonId = 'create'; chainKey = 'create';
+      changeReasonDef = PW.CHANGE_REASONS.find(c => c.id === 'create');
     }
+    // transfer (vacant/occupied-exists) and individual-variation have no
+    // formal SF Change Reason or position-approval chain at all — they
+    // never touch the Position record, so chainKey stays null.
 
-    const chainEntry = PW.APPROVAL_CHAINS[chainKey];
+    const chainEntry = chainKey ? PW.APPROVAL_CHAINS[chainKey] : null;
     const bcRelevant = chainKey === 'create' || chainKey === 'fte_increase';
-    const stops = bcRelevant ? (answers.businessCase === 'yes' ? chainEntry.withBC : chainEntry.noBC) : chainEntry.noBC;
-
-    const changeReasonDef = path === 'create'
-      ? PW.CHANGE_REASONS.find(c => c.id === 'create')
-      : PW.CHANGE_REASONS.find(c => c.id === changeReasonId);
+    const stops = chainEntry ? (bcRelevant ? (answers.businessCase === 'yes' ? chainEntry.withBC : chainEntry.noBC) : chainEntry.noBC) : [];
 
     let actionLabel, actionDetail;
     if (path === 'create') {
@@ -264,32 +462,54 @@
       if (answers.employeeStatusChange) {
         actionDetail += ' This is required because Ongoing and Fixed Term positions must always be separate, even for an identical role.';
       }
-    } else {
+    } else if (path === 'amend') {
       actionLabel = `Amend the existing position \u2014 ${changeReasonDef.label}`;
       actionDetail = changeReasonDef.summary;
+    } else if (path === 'deactivate') {
+      actionLabel = 'Deactivate the position';
+      actionDetail = 'Set Status to Inactive to remove it from the structure and free its budgeted FTE for reallocation elsewhere \u2014 only possible because it\u2019s genuinely vacant with nothing scheduled to move someone in.';
+    } else if (path === 'individual-variation') {
+      actionLabel = 'Use a Change in Job or Compensation Information \u2014 not a Position edit';
+      actionDetail = INDIVIDUAL_DETAIL[answers.individualChange] || INDIVIDUAL_DETAIL.other;
+    } else { // transfer
+      if (answers.transferOutcome === 'vacant-exists') {
+        actionLabel = 'Transfer into the existing vacant position';
+        actionDetail = 'A matching vacant position already exists at the destination \u2014 don\u2019t create or amend anything. Note its Position Number, then run a Job Information Change to move the employee in.';
+      } else if (answers.transferOutcome === 'occupied-exists') {
+        actionLabel = 'Check before transferring into an occupied position';
+        actionDetail = 'A matching position exists at the destination, but someone\u2019s already in it. This only works as a genuine job-share \u2014 confirm Multiple Holders Allowed and remaining Target FTE before proceeding, or create a new Same-Level position instead.';
+      } else {
+        actionLabel = (answers.createType === 'same-level' ? 'Create a Same-Level Position, then transfer the employee in' : 'Create a Lower-Level Position, then transfer the employee in');
+        actionDetail = 'No matching position exists at the destination, so it needs to be created first. Once approved and active, run a Job Information Change to move the employee into it.';
+      }
     }
 
     const checklist = buildChecklist(path, changeReasonId, answers);
     const steps = buildSteps(path, changeReasonId, answers);
 
     let syncWarning = null;
-    if (answers.occupied === 'yes' && answers.syncFields && answers.syncFields.length) {
+    if (path === 'amend' && answers.occupied === 'yes' && answers.syncFields && answers.syncFields.length) {
       const details = answers.syncFields.map(id => PW.SYNC_RELEVANT_FIELDS.find(f => f.id === id)).filter(Boolean);
       const risky = details.some(f => f.payScaleWarning);
       syncWarning = {
         details, risky,
         text: risky
-          ? 'This position is occupied and you\u2019re changing Pay Scale Type / Area / Group. Pay Scale Level will NOT synchronise \u2014 incumbents could end up with a mismatched classification and pay point. Verify every incumbent\u2019s current Pay Scale Level before synchronising, or use Change in Job & Compensation Information on an individual record if this only applies to one person.'
+          ? 'This position is occupied and you\u2019re changing Pay Scale Type / Area / Group. Pay Scale Level will NOT synchronise \u2014 incumbents could end up with a mismatched classification and pay point. Verify every incumbent\u2019s current Pay Scale Level before synchronising.'
           : 'This position is occupied. Open the Synchronisation Risk Checker to confirm exactly which of your changes will reach incumbents automatically.',
+        action: risky ? PW.SAFER_ALTERNATIVE : null,
       };
-    } else if (answers.occupied === 'yes' && (changeReasonId === 'other' || changeReasonId === 'classification')) {
-      syncWarning = { details: [], risky: false, text: 'This position is occupied. Open the Synchronisation Risk Checker before submitting to confirm exactly what will and won\u2019t reach your incumbents.' };
+    } else if (path === 'amend' && answers.occupied === 'yes' && (changeReasonId === 'other' || changeReasonId === 'classification')) {
+      syncWarning = { details: [], risky: false, text: 'This position is occupied. Open the Synchronisation Risk Checker before submitting to confirm exactly what will and won\u2019t reach your incumbents.', action: null };
     }
 
     return {
-      path, changeReasonId, changeReasonDef, chainKey, stops, chainNote: chainEntry.note,
+      path, changeReasonId, changeReasonDef, chainKey, stops,
+      chainNote: chainEntry ? chainEntry.note : null,
+      chainHeadline: chainEntry ? (chainEntry.headline || null) : null,
+      bannerEyebrow: BANNER_META[path].eyebrow, bannerIcon: BANNER_META[path].icon,
       bcRelevant, bcAnswer: answers.businessCase, actionLabel, actionDetail, checklist, steps, syncWarning,
       createType: answers.createType, fteDirection: answers.fteDirection, occupied: answers.occupied,
+      transferOutcome: answers.transferOutcome, individualChange: answers.individualChange,
     };
   }
 
@@ -324,25 +544,33 @@
     lines.push('ACTION: ' + rec.actionLabel);
     lines.push(rec.actionDetail);
     lines.push('');
-    lines.push('Change Reason to select: ' + rec.changeReasonDef.label);
-    lines.push('');
-    lines.push(`APPROVAL CHAIN (${rec.stops.length} ${rec.stops.length === 1 ? 'step' : 'steps'}):`);
-    rec.stops.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));
-    lines.push(rec.chainNote);
+    if (rec.changeReasonDef) lines.push('Change Reason to select: ' + rec.changeReasonDef.label);
+    if (rec.stops.length) {
+      lines.push('');
+      lines.push(`APPROVAL CHAIN (${rec.stops.length} ${rec.stops.length === 1 ? 'step' : 'steps'}):`);
+      rec.stops.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));
+      if (rec.chainHeadline) lines.push('  ' + rec.chainHeadline);
+      lines.push(rec.chainNote);
+    } else {
+      lines.push('');
+      lines.push('APPROVAL CHAIN: Not applicable \u2014 this isn\u2019t a Position-level change, so the position-approval chain doesn\u2019t apply. It follows its own (separate) routing.');
+    }
     lines.push('');
     lines.push('FIELD CHECKLIST:');
     rec.checklist.forEach(item => {
       const f = item.fieldId ? field(item.fieldId) : null;
-      lines.push(`  - ${f ? f.name : 'Also check'}: ${item.customNote || (f ? f.enter : '')}`);
+      const label = item.title || (f ? f.name : 'Also check');
+      lines.push(`  - ${label}: ${item.customNote || (f ? f.enter : '')}`);
     });
     if (rec.syncWarning) {
       lines.push('');
       lines.push('SYNCHRONISATION NOTE:');
       lines.push('  ' + rec.syncWarning.text);
+      if (rec.syncWarning.action) lines.push('  Recommended action: ' + rec.syncWarning.action.label);
     }
     lines.push('');
     lines.push('STEPS IN SUCCESSFACTORS:');
-    rec.steps.forEach((s, i) => lines.push(`  ${i + 1}. ${s.title} \u2014 ${s.body}`));
+    rec.steps.forEach((s, i) => lines.push(`  ${i + 1}. ${s.title}` + (s.body ? ` \u2014 ${s.body}` : '')));
     if (scenario) {
       lines.push('');
       lines.push('SIMILAR REAL CASE \u2014 ' + scenario.title + ':');
