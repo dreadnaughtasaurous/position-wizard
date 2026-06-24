@@ -544,6 +544,28 @@
     return candidates[0];
   }
 
+  /* ---------- 2.1 — Submission Readiness / Pre-flight Validator ----------
+     Pure relevance + validation helpers, reused by the standalone
+     preflight tool. Relevance mirrors buildChecklist()'s field-presence
+     rules exactly, so "is this gotcha even worth asking about" can never
+     drift from what the wizard itself puts in front of a manager for a
+     given Change Reason. parentPosition is 'always' (Create — always in
+     the field set), 'conditional' (Other — buildChecklist lists it but
+     only if the reporting line is genuinely part of the change, so the
+     validator asks rather than assumes), or false (not in this Change
+     Reason's field set at all). */
+  function preflightRelevance(changeReasonId, fteDirection) {
+    return {
+      fte: changeReasonId === 'create' || changeReasonId === 'fte',
+      businessCase: changeReasonId === 'create' || (changeReasonId === 'fte' && fteDirection === 'increase'),
+      payScale: changeReasonId === 'create' || changeReasonId === 'classification',
+      parentPosition: changeReasonId === 'create' ? 'always' : changeReasonId === 'other' ? 'conditional' : false,
+    };
+  }
+
+  const BUSINESS_CASE_NUMBER_RE = /^\d{2}\.\d{3}$/;
+  function isValidBusinessCaseNumber(v) { return BUSINESS_CASE_NUMBER_RE.test(String(v || '').trim()); }
+
   /* ---------- Plain-text summary (for the Copy button) ----------
      3.3 — trail is the manager's question-by-question decision path
      (an array of { tag, title, answer }), supplied by the wizard's
@@ -610,4 +632,6 @@
   PW.matchScenario = matchScenario;
   PW.recommendationToText = recommendationToText;
   PW.derivePath = derivePath;
+  PW.preflightRelevance = preflightRelevance;
+  PW.isValidBusinessCaseNumber = isValidBusinessCaseNumber;
 })();

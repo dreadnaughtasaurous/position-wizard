@@ -342,6 +342,19 @@
 .field-row-detail p, .field-row-detail li { font-size: var(--text-base); color: var(--text-1); line-height: 1.55; }
 .field-row-detail ul { margin: 0; padding-left: 18px; }
 
+/* ── 2.1 — Pre-flight check cards: a focused status card per gotcha,
+      reusing .card as the shell so it sits right alongside the field
+      grid / sync table visually. Only the two states that matter most
+      at a glance — a hard fail, or a confirmed pass — get a colour
+      accent on the card itself; the other states (n/a, incomplete,
+      check-again, note) rely on the badge alone so the page doesn't
+      turn into a wall of colour before anything's been answered. ── */
+.preflight-check { padding: 18px 20px; }
+.preflight-check-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.preflight-check-head strong { font-size: var(--text-base); color: var(--text-1); }
+.preflight-check.tone-fail { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }
+.preflight-check.tone-pass { border-color: var(--success); }
+
 /* ── Sync table ── */
 .sync-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .sync-table th, .sync-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--divider); }

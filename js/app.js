@@ -337,6 +337,234 @@ document.addEventListener('alpine:init', () => {
       return { stops: entry.noBC, note: entry.note, headline: entry.headline || null, key: this.chainKey };
     },
   }));
+
+  /* ============================================================
+     SUBMISSION READINESS CHECK — 2.1 Pre-flight Validator
+     ------------------------------------------------------------
+     A final, focused checklist for the five gotchas that trigger a
+     Send Back (which resets the whole approval chain): Change Reason
+     vs. intent, Multiple Holders vs. Target FTE, Business Case Number
+     format, Pay Scale Year 1 / Level 1, and Parent Position
+     verification. Works standalone (pick a Change Reason, answer the
+     checks), but auto-picks up the most recent completed Decision
+     Wizard session from sessionStorage so it never asks a manager to
+     re-state what the wizard already worked out.
+     ============================================================ */
+  Alpine.data('preflight', () => ({
+    mode: 'manual', // 'connected' | 'manual' | 'not-applicable'
+    wizardAnswers: null,
+    wizardRec: null,
+    changeReasonId: null,
+
+    targetFte: '',
+    multipleHolders: null,        // 'yes' | 'no'
+    manualFteDirection: null,     // 'increase' | 'decrease' — from wizard, or n/a in manual mode
+    businessCaseHas: null,        // 'yes' | 'no'
+    businessCaseNumber: '',
+    payScaleConfirmed: null,      // 'yes' | 'no' | 'unsure'
+    reportingLineChanging: null,  // 'yes' | 'no' — only asked for "Other Attributes"
+    parentPositionVerified: null, // 'yes' | 'no'
+
+    copied: false,
+
+    init() {
+      this.pullWizardContext();
+      this.prefillFromWizard();
+    },
+
+    // Re-reads the wizard's session state and wipes any answers already
+    // entered here. Deliberately NOT called on every visit (sidebar nav
+    // alone never wipes a check in progress) — only exposed via
+    // window.__pwPreflight so the wizard's recommendation screen can
+    // force a fresh pull when a manager explicitly jumps here with a
+    // brand-new recommendation in hand.
+    refresh() {
+      this.pullWizardContext();
+      this.resetAnswers();
+      this.prefillFromWizard();
+    },
+
+    pullWizardContext() {
+      this.mode = 'manual';
+      this.wizardAnswers = null;
+      this.wizardRec = null;
+      this.changeReasonId = null;
+      const saved = sessionStorage.getItem('pw-wizard-state');
+      if (!saved) return;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.step !== 'recommendation' || !parsed.answers || !Object.keys(parsed.answers).length) return;
+        const rec = PW.buildRecommendation(parsed.answers);
+        this.wizardAnswers = parsed.answers;
+        this.wizardRec = rec;
+        if (rec.chainKey) {
+          // Has a real Position-level Change Reason — there's something
+          // to pre-flight check.
+          this.mode = 'connected';
+          this.changeReasonId = rec.changeReasonId;
+        } else {
+          // Transfer-into-existing-position or individual-variation —
+          // never touches the Position record, so none of these five
+          // gotchas apply.
+          this.mode = 'not-applicable';
+        }
+      } catch (e) { /* ignore corrupt state */ }
+    },
+
+    prefillFromWizard() {
+      if (this.mode !== 'connected' || !this.wizardAnswers) return;
+      this.manualFteDirection = this.wizardAnswers.fteDirection || null;
+      this.businessCaseHas = this.wizardAnswers.businessCase || null;
+    },
+
+    resetAnswers() {
+      this.targetFte = '';
+      this.multipleHolders = null;
+      this.manualFteDirection = null;
+      this.businessCaseHas = null;
+      this.businessCaseNumber = '';
+      this.payScaleConfirmed = null;
+      this.reportingLineChanging = null;
+      this.parentPositionVerified = null;
+    },
+
+    // "Not this one? Check something else instead" — drops the wizard
+    // link entirely and starts a fully manual check.
+    useManualInstead() {
+      this.mode = 'manual';
+      this.wizardRec = null;
+      this.wizardAnswers = null;
+      this.changeReasonId = null;
+      this.resetAnswers();
+    },
+
+    // "Reset checks" — clears answers but keeps the chosen Change
+    // Reason (and the wizard link, if connected) intact.
+    resetInputs() {
+      this.resetAnswers();
+      this.prefillFromWizard();
+    },
+
+    selectChangeReason(id) {
+      this.changeReasonId = id;
+      this.resetAnswers();
+      this.prefillFromWizard();
+    },
+
+    get reasonLabel() {
+      const d = PW.CHANGE_REASONS.find(c => c.id === this.changeReasonId);
+      return d ? d.label : '';
+    },
+    get recommendedChangeReasonId() { return this.mode === 'connected' ? this.wizardRec.changeReasonId : null; },
+    get relevance() {
+      if (!this.changeReasonId) return { fte: false, businessCase: false, payScale: false, parentPosition: false };
+      return PW.preflightRelevance(this.changeReasonId, this.manualFteDirection);
+    },
+
+    // ---- The five gotchas ----
+    get reasonCheck() {
+      if (!this.changeReasonId) return { status: 'pending', text: 'Select the Change Reason you\u2019re about to use in SuccessFactors.' };
+      if (this.recommendedChangeReasonId) {
+        if (this.changeReasonId === this.recommendedChangeReasonId) {
+          return { status: 'pass', text: 'Matches the Decision Wizard\u2019s recommendation for this submission.' };
+        }
+        const recLabel = PW.CHANGE_REASONS.find(c => c.id === this.recommendedChangeReasonId).label;
+        return { status: 'fail', text: `This differs from your Decision Wizard recommendation \u2014 \u201c${recLabel}\u201d. A mismatched Change Reason locks you out of the fields you actually need.` };
+      }
+      return { status: 'info', text: 'No Decision Wizard recommendation on file to compare against \u2014 run the Decision Wizard first for a definitive cross-check.' };
+    },
+
+    get fteCheck() {
+      if (!this.relevance.fte) return { status: 'na', text: `Target FTE and Multiple Holders aren\u2019t part of the \u201c${this.reasonLabel}\u201d field set.` };
+      if (this.targetFte === '' || this.targetFte === null) return { status: 'pending', text: 'Enter the Target FTE you\u2019re about to submit to check this.' };
+      const fte = parseFloat(this.targetFte);
+      if (isNaN(fte)) return { status: 'pending', text: 'Enter a valid number for Target FTE.' };
+      if (fte > 1.0) {
+        if (this.multipleHolders === 'yes') return { status: 'pass', text: `Target FTE of ${fte} is above 1.0, and Multiple Holders Allowed is set to Yes \u2014 correct.` };
+        if (this.multipleHolders === 'no') return { status: 'fail', text: `Target FTE of ${fte} is above 1.0, so Multiple Holders Allowed must be Yes \u2014 otherwise the position can\u2019t actually carry the incumbents it\u2019s funded for.` };
+        return { status: 'pending', text: 'Confirm what Multiple Holders Allowed is set to.' };
+      }
+      return { status: 'pass', text: `Target FTE of ${fte} is 1.0 or below \u2014 Multiple Holders Allowed isn\u2019t required by this rule (genuine job-share arrangements aside).` };
+    },
+
+    get bcCheck() {
+      if (!this.relevance.businessCase) return { status: 'na', text: `A business case doesn\u2019t change the approval chain for \u201c${this.reasonLabel}\u201d.` };
+      if (this.businessCaseHas === null) return { status: 'pending', text: 'Confirm whether you have a Finance-approved business case attached.' };
+      if (this.businessCaseHas === 'no') return { status: 'info', text: 'No business case attached \u2014 that\u2019s fine, but one would shorten your approval chain for this change.' };
+      const v = (this.businessCaseNumber || '').trim();
+      if (!v) return { status: 'pending', text: 'Enter the Business Case Number Finance gave you.' };
+      if (PW.isValidBusinessCaseNumber(v)) return { status: 'pass', text: `\u201c${v}\u201d matches the required XX.XXX format.` };
+      return { status: 'fail', text: `\u201c${v}\u201d doesn\u2019t match the required format \u2014 two-digit year, three-digit sequence (e.g. 25.042).` };
+    },
+
+    get payScaleCheck() {
+      if (!this.relevance.payScale) return { status: 'na', text: `Pay Scale fields aren\u2019t part of the \u201c${this.reasonLabel}\u201d field set.` };
+      if (this.payScaleConfirmed === 'yes') return { status: 'pass', text: 'Pay Scale Group and Pay Scale Level are both set to Year 1 / Level 1 \u2014 correct, regardless of who you expect to recruit.' };
+      if (this.payScaleConfirmed === 'no') return { status: 'fail', text: 'Change Pay Scale Group and Pay Scale Level back to the Year 1 / Level 1 base options \u2014 this preserves maximum recruitment flexibility.' };
+      if (this.payScaleConfirmed === 'unsure') return { status: 'warn', text: 'Check the Field Reference Guide entry for Pay Scale Group before you submit \u2014 this is one of the most common mistakes in the system.' };
+      return { status: 'pending', text: 'Confirm you\u2019ve selected the Year 1 / Level 1 base group and level.' };
+    },
+
+    get parentPositionCheck() {
+      const rel = this.relevance.parentPosition;
+      if (!rel) return { status: 'na', text: `Parent Position isn\u2019t part of the \u201c${this.reasonLabel}\u201d field set.` };
+      if (rel === 'conditional') {
+        if (this.reportingLineChanging === null) return { status: 'pending', text: 'Confirm whether the reporting line (Parent Position) is part of this change.' };
+        if (this.reportingLineChanging === 'no') return { status: 'na', text: 'Not part of this change \u2014 nothing to verify here.' };
+      }
+      if (this.parentPositionVerified === 'yes') return { status: 'pass', text: 'Parent Position has been verified, not just trusted from auto-population.' };
+      if (this.parentPositionVerified === 'no') return { status: 'fail', text: 'Verify Parent Position before submitting \u2014 a wrong reporting line is one of the most common org-chart errors, and a Send Back resets your whole approval chain.' };
+      return { status: 'pending', text: 'Confirm you\u2019ve verified the Parent Position rather than trusting the auto-populated value.' };
+    },
+
+    get checks() {
+      return [
+        { key: 'reason', title: 'Change Reason matches intent', status: this.reasonCheck.status, text: this.reasonCheck.text },
+        { key: 'fte', title: 'Multiple Holders vs Target FTE', status: this.fteCheck.status, text: this.fteCheck.text },
+        { key: 'bc', title: 'Business Case Number format', status: this.bcCheck.status, text: this.bcCheck.text },
+        { key: 'payscale', title: 'Pay Scale at Year 1 / Level 1', status: this.payScaleCheck.status, text: this.payScaleCheck.text },
+        { key: 'parent', title: 'Parent Position verified', status: this.parentPositionCheck.status, text: this.parentPositionCheck.text },
+      ];
+    },
+
+    get summary() {
+      if (!this.changeReasonId) return { tone: 'info', text: 'Select the Change Reason you\u2019re about to use above to start the check.' };
+      const relevant = this.checks.filter(c => c.status !== 'na');
+      const failing = relevant.filter(c => c.status === 'fail');
+      const pending = relevant.filter(c => c.status === 'pending');
+      if (failing.length) return { tone: 'danger', text: `${failing.length} issue${failing.length === 1 ? '' : 's'} found \u2014 fix ${failing.length === 1 ? 'it' : 'them'} before you submit, or a Send Back resets this approval chain.` };
+      if (pending.length) return { tone: 'warning', text: `${pending.length} check${pending.length === 1 ? '' : 's'} still need${pending.length === 1 ? 's' : ''} an answer before this is a complete check.` };
+      return { tone: 'success', text: 'No gotchas detected in this checklist \u2014 looks ready for SuccessFactors. This isn\u2019t exhaustive, so use your judgement on anything unusual.' };
+    },
+
+    badgeClass(status) {
+      return { pass: 'badge-success', fail: 'badge-danger', warn: 'badge-warning', info: 'badge-info', na: 'badge-neutral', pending: 'badge-brand' }[status] || 'badge-neutral';
+    },
+    badgeLabel(status) {
+      return { pass: 'Pass', fail: 'Needs fixing', warn: 'Check again', info: 'Note', na: 'N/A', pending: 'Incomplete' }[status] || status;
+    },
+
+    copySummary() {
+      const lines = [];
+      lines.push('SUBMISSION READINESS CHECK');
+      lines.push('Generated by the Position Wizard (unofficial reference tool) \u2014 ' + new Date().toLocaleDateString('en-AU'));
+      lines.push('');
+      lines.push('Change Reason: ' + (this.reasonLabel || 'Not selected'));
+      lines.push('Overall: ' + this.summary.text);
+      lines.push('');
+      this.checks.forEach(c => {
+        const tag = { pass: 'PASS', fail: 'NEEDS FIXING', warn: 'CHECK AGAIN', na: 'N/A', pending: 'INCOMPLETE', info: 'NOTE' }[c.status] || c.status.toUpperCase();
+        lines.push(`[${tag}] ${c.title}`);
+        lines.push('  ' + c.text);
+      });
+      lines.push('');
+      lines.push('This is an unofficial reference tool \u2014 confirm anything unusual with HR Services before submitting: ' + PW.HELP_URL);
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 2200);
+      });
+    },
+  }));
 });
 
 /* ---------- Browser back/forward sync ----------

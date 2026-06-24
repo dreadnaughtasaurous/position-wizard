@@ -102,6 +102,9 @@
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'approval' }" @click="$store.nav.go('approval')">
         <svg><use href="#i-flow"/></svg> Approval Estimator
       </button>
+      <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'preflight' }" @click="$store.nav.go('preflight')">
+        <svg><use href="#i-check-circle"/></svg> Submission Readiness
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -171,6 +174,13 @@
           <h3>Approval Chain Estimator</h3>
           <p>See exactly how many approvers your request will go to, and who they are, before you submit anything.</p>
           <span class="tool-card-cta">Estimate approval <svg><use href="#i-arrow-right"/></svg></span>
+        </button>
+
+        <button class="tool-card" @click="$store.nav.go('preflight')">
+          <div class="tool-card-icon" style="background:var(--danger-bg); color:var(--danger)"><svg><use href="#i-check-circle"/></svg></div>
+          <h3>Submission Readiness Check</h3>
+          <p>About to submit in SuccessFactors? Run your Change Reason, FTE, Pay Scale, business case, and Parent Position against the gotchas that trigger a Send Back — before you go in.</p>
+          <span class="tool-card-cta">Run the check <svg><use href="#i-arrow-right"/></svg></span>
         </button>
       </div>
     </section>
@@ -376,6 +386,22 @@
                   <div class="step-item-body"><strong x-text="t.title"></strong><p x-text="t.answer"></p></div>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- 2.1 — hand this recommendation to the Submission Readiness
+               Check, the same way the sync warning above links to the
+               Sync Checker. Only shown when this recommendation is an
+               actual Position-level submission. -->
+          <div class="callout callout-info no-print" x-show="recommendation.chainKey" style="margin-bottom:26px">
+            <svg><use href="#i-check-circle"/></svg>
+            <div>
+              <strong>Before you head into SuccessFactors</strong>
+              <div class="action-cta">
+                <svg><use href="#i-arrow-right"/></svg>
+                <div><strong>Run the Submission Readiness Check</strong><p>Cross-checks Change Reason, Multiple Holders vs FTE, business case format, Pay Scale, and Parent Position against this recommendation before you submit.</p></div>
+              </div>
+              <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="window.__pwPreflight && window.__pwPreflight.refresh(); $store.nav.go('preflight')">Open Submission Readiness Check <svg><use href="#i-arrow-right"/></svg></button></p>
             </div>
           </div>
 
@@ -625,6 +651,204 @@
               <strong>To speed up approval</strong>
               <p>Confirm your cost centre with your Finance Business Partner before submitting, attach a business case reference number whenever one applies, and use the submission comments box — not the position Comment field — to flag genuine urgency to approvers.</p>
             </div>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ====================== SUBMISSION READINESS CHECK (2.1) ====================== -->
+    <section class="view" x-show="$store.nav.view === 'preflight'" x-cloak x-data="preflight()" x-init="init(); window.__pwPreflight = $data">
+      <div class="page-head">
+        <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-check-circle"/></svg> Before you submit</div>
+        <h1>Submission Readiness Check</h1>
+        <p class="lede">A final pass over the gotchas that send a request straight back to you — Change Reason, Multiple Holders vs FTE, business case format, Pay Scale, and Parent Position — checked before your approval chain resets.</p>
+      </div>
+
+      <!-- Wizard outcomes that never touch the Position record at all -->
+      <template x-if="mode === 'not-applicable'">
+        <div class="callout callout-info" style="margin-bottom:26px">
+          <svg><use href="#i-info"/></svg>
+          <div>
+            <strong>Nothing to pre-flight here</strong>
+            <p>Your last Decision Wizard recommendation — <strong x-text="wizardRec.actionLabel"></strong> — doesn't touch the Position record, so the submission gotchas this tool checks don't apply. It follows its own, separate routing in SuccessFactors.</p>
+            <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="useManualInstead()">Check a different submission instead <svg><use href="#i-arrow-right"/></svg></button></p>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="mode !== 'not-applicable'">
+        <div>
+          <!-- Picked up from a completed Decision Wizard session -->
+          <template x-if="mode === 'connected'">
+            <div class="callout callout-info" style="margin-bottom:22px">
+              <svg><use href="#i-branch"/></svg>
+              <div>
+                <strong>Picked up from your Decision Wizard session</strong>
+                <p x-text="wizardRec.actionLabel"></p>
+                <p style="margin-top:8px"><button class="btn btn-sm btn-ghost" @click="useManualInstead()">Not this one? Check something else instead</button></p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Overall readiness summary -->
+          <div class="callout" :class="{
+              'callout-danger callout-loud': summary.tone === 'danger',
+              'callout-warning': summary.tone === 'warning',
+              'callout-success': summary.tone === 'success',
+              'callout-info': summary.tone === 'info',
+            }" style="margin-bottom:26px">
+            <svg><use :href="summary.tone === 'danger' ? '#i-alert-triangle' : summary.tone === 'warning' ? '#i-alert-circle' : summary.tone === 'success' ? '#i-check-circle' : '#i-info'"/></svg>
+            <div>
+              <strong x-text="summary.tone === 'danger' ? 'Not ready yet' : summary.tone === 'warning' ? 'Almost there' : summary.tone === 'success' ? 'Ready for SuccessFactors' : 'Get started'"></strong>
+              <p x-text="summary.text"></p>
+            </div>
+          </div>
+
+          <!-- Check 1 — Change Reason -->
+          <div class="card preflight-check" :class="'tone-' + reasonCheck.status" style="margin-bottom:16px">
+            <div class="preflight-check-head">
+              <strong>1. Change Reason matches intent</strong>
+              <span class="badge" :class="badgeClass(reasonCheck.status)" x-text="badgeLabel(reasonCheck.status)"></span>
+            </div>
+            <p class="field-hint" style="margin:6px 0 14px" x-text="reasonCheck.text"></p>
+            <div class="choice-grid" style="gap:8px">
+              <template x-for="cr in PW.CHANGE_REASONS" :key="cr.id">
+                <button class="choice-tile" style="padding:12px 14px" :class="{ 'is-selected': changeReasonId === cr.id }" @click="selectChangeReason(cr.id)">
+                  <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span>
+                  <span class="choice-tile-body">
+                    <strong x-text="cr.label"></strong>
+                    <span x-show="recommendedChangeReasonId === cr.id" style="color:var(--brand-1); font-weight:650">Recommended by your Decision Wizard session</span>
+                  </span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <template x-if="changeReasonId">
+            <div>
+              <!-- Check 2 — Multiple Holders vs Target FTE -->
+              <div class="card preflight-check" :class="'tone-' + fteCheck.status" style="margin-bottom:16px">
+                <div class="preflight-check-head">
+                  <strong>2. Multiple Holders vs Target FTE</strong>
+                  <span class="badge" :class="badgeClass(fteCheck.status)" x-text="badgeLabel(fteCheck.status)"></span>
+                </div>
+                <p class="field-hint" style="margin:6px 0 14px" x-text="fteCheck.text"></p>
+                <template x-if="relevance.fte">
+                  <div style="display:flex; flex-direction:column; gap:14px; max-width:320px">
+                    <div>
+                      <label class="field-label">Target FTE you're entering</label>
+                      <input class="input" type="number" step="0.1" min="0" placeholder="e.g. 1.0" x-model="targetFte">
+                    </div>
+                    <div>
+                      <label class="field-label">Multiple Holders Allowed set to</label>
+                      <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+                        <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': multipleHolders === 'yes' }" @click="multipleHolders = 'yes'">
+                          <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                        </button>
+                        <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': multipleHolders === 'no' }" @click="multipleHolders = 'no'">
+                          <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Check 3 — Business Case Number format -->
+              <div class="card preflight-check" :class="'tone-' + bcCheck.status" style="margin-bottom:16px">
+                <div class="preflight-check-head">
+                  <strong>3. Business Case Number format</strong>
+                  <span class="badge" :class="badgeClass(bcCheck.status)" x-text="badgeLabel(bcCheck.status)"></span>
+                </div>
+                <p class="field-hint" style="margin:6px 0 14px" x-text="bcCheck.text"></p>
+                <template x-if="relevance.businessCase">
+                  <div style="display:flex; flex-direction:column; gap:14px; max-width:320px">
+                    <div>
+                      <label class="field-label">Do you have a Finance-approved business case attached?</label>
+                      <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+                        <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': businessCaseHas === 'yes' }" @click="businessCaseHas = 'yes'">
+                          <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                        </button>
+                        <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': businessCaseHas === 'no' }" @click="businessCaseHas = 'no'">
+                          <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                        </button>
+                      </div>
+                    </div>
+                    <div x-show="businessCaseHas === 'yes'">
+                      <label class="field-label">Business Case Number</label>
+                      <input class="input" type="text" placeholder="e.g. 25.042" x-model="businessCaseNumber">
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Check 4 — Pay Scale Year 1 / Level 1 -->
+              <div class="card preflight-check" :class="'tone-' + payScaleCheck.status" style="margin-bottom:16px">
+                <div class="preflight-check-head">
+                  <strong>4. Pay Scale at Year 1 / Level 1</strong>
+                  <span class="badge" :class="badgeClass(payScaleCheck.status)" x-text="badgeLabel(payScaleCheck.status)"></span>
+                </div>
+                <p class="field-hint" style="margin:6px 0 14px" x-text="payScaleCheck.text"></p>
+                <template x-if="relevance.payScale">
+                  <div class="choice-grid" style="grid-template-columns:repeat(3,1fr); max-width:460px">
+                    <button class="choice-tile" style="padding:10px 12px" :class="{ 'is-selected': payScaleConfirmed === 'yes' }" @click="payScaleConfirmed = 'yes'">
+                      <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                    </button>
+                    <button class="choice-tile" style="padding:10px 12px" :class="{ 'is-selected': payScaleConfirmed === 'no' }" @click="payScaleConfirmed = 'no'">
+                      <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                    </button>
+                    <button class="choice-tile" style="padding:10px 12px" :class="{ 'is-selected': payScaleConfirmed === 'unsure' }" @click="payScaleConfirmed = 'unsure'">
+                      <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Not sure</strong></span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Check 5 — Parent Position verified -->
+              <div class="card preflight-check" :class="'tone-' + parentPositionCheck.status" style="margin-bottom:16px">
+                <div class="preflight-check-head">
+                  <strong>5. Parent Position verified</strong>
+                  <span class="badge" :class="badgeClass(parentPositionCheck.status)" x-text="badgeLabel(parentPositionCheck.status)"></span>
+                </div>
+                <p class="field-hint" style="margin:6px 0 14px" x-text="parentPositionCheck.text"></p>
+                <template x-if="relevance.parentPosition === 'conditional'">
+                  <div style="margin-bottom:14px; max-width:320px">
+                    <label class="field-label">Is the reporting line (Parent Position) part of this change?</label>
+                    <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': reportingLineChanging === 'yes' }" @click="reportingLineChanging = 'yes'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                      </button>
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': reportingLineChanging === 'no' }" @click="reportingLineChanging = 'no'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="relevance.parentPosition === 'always' || (relevance.parentPosition === 'conditional' && reportingLineChanging === 'yes')">
+                  <div style="max-width:320px">
+                    <label class="field-label">Verified Parent Position, not just trusted the auto-populated value?</label>
+                    <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': parentPositionVerified === 'yes' }" @click="parentPositionVerified = 'yes'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                      </button>
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': parentPositionVerified === 'no' }" @click="parentPositionVerified = 'no'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <div class="rec-actions no-print" x-show="changeReasonId">
+            <button class="btn btn-primary" @click="copySummary()">
+              <svg><use href="#i-clipboard"/></svg> Copy summary
+            </button>
+            <button class="btn btn-ghost" @click="resetInputs()">
+              <svg><use href="#i-refresh"/></svg> Reset checks
+            </button>
+            <span class="copy-feedback" x-show="copied" x-transition><svg><use href="#i-check"/></svg> Copied to clipboard</span>
           </div>
         </div>
       </template>
