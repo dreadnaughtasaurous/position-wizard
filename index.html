@@ -231,6 +231,12 @@
       <!-- ====================== RECOMMENDATION ====================== -->
       <template x-if="isRecommendation">
         <div>
+          <div class="rec-toolbar no-print">
+            <button class="btn btn-secondary btn-sm" @click="restart()">
+              <svg><use href="#i-refresh"/></svg> Start over
+            </button>
+          </div>
+
           <div class="print-only-header">
             <div class="pt-title">Position Management — Recommendation Summary</div>
             <div class="pt-meta">Position Wizard (unofficial reference tool) · Austin Health</div>

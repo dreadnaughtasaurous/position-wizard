@@ -83,6 +83,19 @@
 .wq-leave-end { opacity: 0; transform: translateY(-8px); }
 
 /* ── Recommendation screen ── */
+.rec-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -8px 0 18px;
+  padding: 10px 0;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--divider);
+}
+@media (max-width: 920px) {
+  .rec-toolbar { top: var(--header-h); }
+}
+
 .rec-banner {
   display: flex;
   align-items: center;
