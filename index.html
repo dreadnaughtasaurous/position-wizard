@@ -172,7 +172,7 @@
     </section>
 
     <!-- ====================== DECISION WIZARD ====================== -->
-    <section class="view view-narrow" x-show="$store.nav.view === 'wizard'" x-cloak x-data="wizard()" x-init="init()">
+    <section class="view view-narrow" x-show="$store.nav.view === 'wizard'" x-cloak x-data="wizard()" x-init="init(); window.__pwWizard = $data">
 
       <template x-if="!isRecommendation">
         <div class="wizard-shell">
@@ -185,6 +185,9 @@
 
           <template x-for="q in [question]" :key="step">
             <div class="wizard-question" x-show="question" x-transition.opacity.duration.200ms>
+              <button class="btn btn-ghost btn-sm wizard-back-top" x-show="history.length" @click="back()">
+                <svg><use href="#i-arrow-left"/></svg> Back
+              </button>
               <div class="wizard-question-tag" x-text="question?.tag"></div>
               <h2 x-text="question?.title"></h2>
               <p class="wizard-sub" x-show="question?.sub" x-text="question?.sub"></p>
@@ -219,9 +222,8 @@
             </div>
           </template>
 
-          <div class="wizard-nav">
-            <button class="btn btn-ghost" x-show="history.length" @click="back()"><svg><use href="#i-arrow-left"/></svg> Back</button>
-            <button class="btn btn-ghost" x-show="!history.length" @click="restart()">Start over</button>
+          <div class="wizard-nav" x-show="!history.length">
+            <button class="btn btn-ghost" @click="restart()">Start over</button>
           </div>
         </div>
       </template>

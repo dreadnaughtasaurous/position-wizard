@@ -10,6 +10,23 @@
 (function () {
   function field(id) { return PW.FIELDS.find(f => f.id === id); }
 
+  /* Checklist items get pushed in whatever order the logic below
+     happens to consider them, which has nothing to do with where a
+     manager will actually meet each field while working through the
+     position record in SuccessFactors. Re-sort into that real,
+     sequential on-screen order (PW.FIELDS[].n — see "Fields in Order
+     of Appearance" in the Position Fields reference) so the checklist
+     reads top-to-bottom exactly like the form itself. Catch-all notes
+     with no specific fieldId (e.g. "Plus whichever of Directorate...
+     applies") aren't tied to one field's position, so they're kept at
+     the end rather than sorted in. */
+  function sortChecklist(items) {
+    const withField = items.filter(it => it.fieldId);
+    const withoutField = items.filter(it => !it.fieldId);
+    withField.sort((a, b) => field(a.fieldId).n - field(b.fieldId).n);
+    return [...withField, ...withoutField];
+  }
+
   function derivePath(answers) {
     if (answers.employeeStatusChange) return 'create';
     return answers.intent === 'change' ? 'amend' : 'create';
@@ -152,7 +169,7 @@
       add('start-date');
       add('business-case-q');
       if (answers.businessCase === 'yes') { add('business-case-number'); add('business-case-attachment'); }
-      return items;
+      return sortChecklist(items);
     }
 
     if (changeReasonId === 'fte') {
@@ -162,24 +179,24 @@
         add('business-case-q');
         if (answers.businessCase === 'yes') { add('business-case-number'); add('business-case-attachment'); }
       }
-      return items;
+      return sortChecklist(items);
     }
     if (changeReasonId === 'title') {
       add('position-title', 'Check the naming convention is followed, especially for EBA-covered roles.');
-      return items;
+      return sortChecklist(items);
     }
     if (changeReasonId === 'classification') {
       add('pay-scale-type'); add('pay-scale-area');
       add('pay-scale-group', 'Select the Year 1 / Level 1 base group.');
       add('pay-scale-level', 'Select Level 1 \u2014 and remember this field will NOT synchronise to any current incumbent.');
-      return items;
+      return sortChecklist(items);
     }
     // other
     add('parent-position', 'Update only if the reporting line is actually changing.');
     add('cost-centre', 'Update only if the cost centre is actually changing.');
     add('status', 'Almost always stays Active.');
     items.push({ fieldId: null, customNote: 'Plus whichever of Directorate, Division, Department, Sub-Department, PH Calendar, Job Role, or the Compliance fields actually applies to your change.' });
-    return items;
+    return sortChecklist(items);
   }
 
   /* ---------- SuccessFactors step-by-step builder ---------- */
@@ -309,7 +326,7 @@
     lines.push('');
     lines.push('Change Reason to select: ' + rec.changeReasonDef.label);
     lines.push('');
-    lines.push(`APPROVAL CHAIN (${rec.stops.length} stop${rec.stops.length === 1 ? '' : 's'}):`);
+    lines.push(`APPROVAL CHAIN (${rec.stops.length} ${rec.stops.length === 1 ? 'step' : 'steps'}):`);
     rec.stops.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));
     lines.push(rec.chainNote);
     lines.push('');

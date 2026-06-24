@@ -30,6 +30,7 @@ document.addEventListener('alpine:init', () => {
       this.view = view;
       Alpine.store('ui').closeSidebar();
       window.scrollTo({ top: 0 });
+      pwPushState();
     },
   });
 
@@ -66,13 +67,11 @@ document.addEventListener('alpine:init', () => {
       this.answers = {};
       this.multiTemp = [];
       sessionStorage.removeItem('pw-wizard-state');
+      pwPushState();
     },
 
     back() {
-      if (!this.history.length) return;
-      this.step = this.history.pop();
-      this.multiTemp = [];
-      this.persist();
+      window.history.back();
     },
 
     select(key, value, nextStep, extra) {
@@ -82,6 +81,7 @@ document.addEventListener('alpine:init', () => {
       this.step = nextStep;
       this.multiTemp = [];
       this.persist();
+      pwPushState();
     },
 
     toggleMulti(value) {
@@ -95,6 +95,7 @@ document.addEventListener('alpine:init', () => {
       this.step = nextStep;
       this.multiTemp = [];
       this.persist();
+      pwPushState();
     },
 
     // Fundamentals step has content-dependent routing (ticking anything
@@ -114,6 +115,7 @@ document.addEventListener('alpine:init', () => {
       }
       this.multiTemp = [];
       this.persist();
+      pwPushState();
     },
 
     onMultiContinue() {
@@ -256,3 +258,39 @@ document.addEventListener('alpine:init', () => {
     },
   }));
 });
+
+/* ---------- Browser back/forward sync ----------
+   Keeps window.history in step with the app so a hardware/gesture
+   back press lands on the previous tool or wizard question instead
+   of leaving the page. */
+function pwSnapshotState() {
+  const nav = Alpine.store('nav');
+  const state = { view: nav.view };
+  const w = window.__pwWizard;
+  if (nav.view === 'wizard' && w) {
+    state.wizardStep = w.step;
+    state.wizardHistory = [...w.history];
+    state.wizardAnswers = { ...w.answers };
+  }
+  return state;
+}
+
+function pwPushState() {
+  history.pushState(pwSnapshotState(), '', '');
+}
+
+function pwApplyState(state) {
+  const nav = Alpine.store('nav');
+  nav.view = (state && state.view) || 'home';
+  Alpine.store('ui').closeSidebar();
+  const w = window.__pwWizard;
+  if (nav.view === 'wizard' && w && state) {
+    w.step = state.wizardStep || 'start';
+    w.history = state.wizardHistory || [];
+    w.answers = state.wizardAnswers || {};
+    w.multiTemp = [];
+    w.persist();
+  }
+}
+
+window.addEventListener('popstate', (e) => pwApplyState(e.state));

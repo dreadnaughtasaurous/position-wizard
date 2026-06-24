@@ -44,6 +44,10 @@
   max-width: 640px;
 }
 
+.wizard-back-top {
+  margin: 0 0 14px -13px;
+}
+
 .wizard-question-tag {
   display: inline-flex;
   align-items: center;
