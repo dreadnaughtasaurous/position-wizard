@@ -187,6 +187,13 @@
             <span class="wizard-step-count" x-text="`${progressPct}% of the way there`"></span>
           </div>
 
+          <!-- 3.3 — live decision-path breadcrumb: shows the path taken so far -->
+          <div class="wizard-trail" x-show="trail.length" x-transition.opacity.duration.200ms>
+            <template x-for="(t, i) in trail" :key="i">
+              <span class="wizard-trail-item" :title="`${t.title} → ${t.answer}`" x-text="t.answer"></span>
+            </template>
+          </div>
+
           <template x-for="q in [question]" :key="step">
             <div class="wizard-question" x-show="question" x-transition.opacity.duration.200ms>
               <button class="btn btn-ghost btn-sm wizard-back-top" x-show="history.length" @click="back()">
@@ -198,6 +205,15 @@
               <ul class="wizard-checksteps" x-show="question?.checkSteps">
                 <template x-for="(cs, i) in (question?.checkSteps || [])" :key="i"><li x-text="cs"></li></template>
               </ul>
+
+              <!-- 3.1 — "What's next" forward-looking panel, non-blocking -->
+              <div class="whats-next" x-show="question?.whatsNext">
+                <svg><use href="#i-arrow-right"/></svg>
+                <div>
+                  <span class="whats-next-label">What’s next</span>
+                  <p x-text="question?.whatsNext"></p>
+                </div>
+              </div>
 
               <!-- Single-select -->
               <div class="choice-grid" x-show="question?.type === 'single' || question?.type === 'info'">
@@ -345,6 +361,19 @@
                 <div class="step-item">
                   <span class="step-item-num"></span>
                   <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-text="s.body"></p></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="rec-section" x-show="trail.length">
+            <h3><svg><use href="#i-branch"/></svg> Your decision path</h3>
+            <p class="field-hint" style="margin-bottom:14px">How this recommendation was reached — handy as a record for HR or an approver.</p>
+            <div class="steps-list">
+              <template x-for="(t, i) in trail" :key="i">
+                <div class="step-item">
+                  <span class="step-item-num"></span>
+                  <div class="step-item-body"><strong x-text="t.title"></strong><p x-text="t.answer"></p></div>
                 </div>
               </template>
             </div>

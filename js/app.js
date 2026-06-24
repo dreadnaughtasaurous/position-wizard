@@ -42,6 +42,7 @@ document.addEventListener('alpine:init', () => {
     history: [],
     answers: {},
     multiTemp: [],
+    trail: [], // 3.3 — decision audit trail: [{ tag, title, answer }, ...]
 
     init() {
       const saved = sessionStorage.getItem('pw-wizard-state');
@@ -51,13 +52,14 @@ document.addEventListener('alpine:init', () => {
           this.step = parsed.step || 'start';
           this.history = parsed.history || [];
           this.answers = parsed.answers || {};
+          this.trail = parsed.trail || [];
         } catch (e) { /* ignore corrupt state */ }
       }
     },
 
     persist() {
       sessionStorage.setItem('pw-wizard-state', JSON.stringify({
-        step: this.step, history: this.history, answers: this.answers,
+        step: this.step, history: this.history, answers: this.answers, trail: this.trail,
       }));
     },
 
@@ -65,6 +67,7 @@ document.addEventListener('alpine:init', () => {
       this.step = 'start';
       this.history = [];
       this.answers = {};
+      this.trail = [];
       this.multiTemp = [];
       sessionStorage.removeItem('pw-wizard-state');
       pwPushState();
@@ -74,7 +77,18 @@ document.addEventListener('alpine:init', () => {
       window.history.back();
     },
 
+    // 3.3 — records the question + chosen answer label onto the trail
+    // before any state moves on, so it always reflects the question
+    // that was actually on screen when the manager answered it.
+    recordTrail(q, answerLabel) {
+      if (!q) return;
+      this.trail.push({ tag: q.tag, title: q.title, answer: answerLabel });
+    },
+
     select(key, value, nextStep, extra) {
+      const q = this.question;
+      const opt = q ? (q.options || []).find(o => o.value === value) : null;
+      this.recordTrail(q, opt ? opt.label : String(value));
       this.answers[key] = value;
       if (extra) Object.assign(this.answers, extra);
       this.history.push(this.step);
@@ -90,6 +104,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     confirmMulti(key, nextStep) {
+      const q = this.question;
+      const labels = this.multiTemp.map(v => {
+        const opt = q ? (q.options || []).find(o => o.value === v) : null;
+        return opt ? opt.label : v;
+      });
+      this.recordTrail(q, labels.length ? labels.join(', ') : 'None selected');
       this.answers[key] = [...this.multiTemp];
       this.history.push(this.step);
       this.step = nextStep;
@@ -102,7 +122,13 @@ document.addEventListener('alpine:init', () => {
     // real means Create; ticking nothing / only "none" means Amend), so
     // it gets its own handler rather than the generic confirmMulti.
     submitFundamentals() {
+      const q = this.question;
       const sel = this.multiTemp.filter(v => v !== 'none');
+      const labels = sel.map(v => {
+        const opt = q ? (q.options || []).find(o => o.value === v) : null;
+        return opt ? opt.label : v;
+      });
+      this.recordTrail(q, labels.length ? labels.join(', ') : 'None of these \u2014 everything fundamental matches an existing position');
       this.answers.fundamentalsDiff = sel;
       this.history.push(this.step);
       if (sel.length === 0) {
@@ -135,7 +161,7 @@ document.addEventListener('alpine:init', () => {
 
     copied: false,
     copySummary() {
-      const text = PW.recommendationToText(this.recommendation, this.matchedScenario);
+      const text = PW.recommendationToText(this.recommendation, this.matchedScenario, this.trail);
       navigator.clipboard.writeText(text).then(() => {
         this.copied = true;
         setTimeout(() => { this.copied = false; }, 2200);
@@ -325,6 +351,7 @@ function pwSnapshotState() {
     state.wizardStep = w.step;
     state.wizardHistory = [...w.history];
     state.wizardAnswers = { ...w.answers };
+    state.wizardTrail = [...w.trail];
   }
   return state;
 }
@@ -342,6 +369,7 @@ function pwApplyState(state) {
     w.step = state.wizardStep || 'start';
     w.history = state.wizardHistory || [];
     w.answers = state.wizardAnswers || {};
+    w.trail = state.wizardTrail || [];
     w.multiTemp = [];
     w.persist();
   }

@@ -67,6 +67,55 @@
   margin-bottom: 26px;
 }
 
+/* 3.1 — "What's next" forward-looking panel: cheap, non-blocking context
+   shown at a handful of genuine decision points. Deliberately quieter
+   than .callout (no border-color-coded tone) since this isn't a warning,
+   just a preview of what the choice leads to. */
+.whats-next {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--brand-soft);
+  border: 1px solid rgba(52, 81, 178, 0.18);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  margin: 0 0 22px;
+}
+.whats-next svg { width: 15px; height: 15px; color: var(--brand-1); flex-shrink: 0; margin-top: 3px; }
+.whats-next-label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-1);
+  margin-bottom: 2px;
+}
+.whats-next p { margin: 0; color: var(--text-2); font-size: var(--text-sm); line-height: 1.5; }
+
+/* 3.3 — live decision-path breadcrumb above the active question.
+   Each chip is the answer the manager already gave; the full
+   question+answer is available on hover via the title attribute. */
+.wizard-trail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 22px;
+}
+.wizard-trail-item {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--bg-elv);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wizard-nav {
   display: flex;
   align-items: center;

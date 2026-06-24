@@ -90,6 +90,7 @@
         return {
           tag: 'Individual variation', title: 'What\u2019s changing for them?', sub: null,
           type: 'single', key: 'individualChange',
+          whatsNext: 'This stays entirely on the employee\u2019s own Job Information record \u2014 it never touches the Position, so no Position-level approval chain applies here.',
           options: [
             { value: 'hours', label: 'Their hours or working pattern', next: 'recommendation' },
             { value: 'classification', label: 'Their classification or pay scale level', next: 'recommendation' },
@@ -104,6 +105,7 @@
           sub: 'Matching means the same Title, Pay Scale Group, Employee Status, AND Cost Centre at the destination \u2014 check the Position Org Chart to be sure.',
           checkSteps: PW.VACANT_CHECK.steps,
           type: 'single', key: 'transferOutcome',
+          whatsNext: 'Moving someone into an existing position is a Job Information change, not a Position edit \u2014 it follows its own approval routing, separate from the Position chain shown elsewhere in this tool.',
           options: [
             { value: 'vacant-exists', label: 'Yes \u2014 and it\u2019s currently vacant', next: 'recommendation' },
             { value: 'occupied-exists', label: 'Yes \u2014 but someone is already in it', sub: 'Only works as a genuine job-share with room left in Target FTE.', next: 'recommendation' },
@@ -116,6 +118,7 @@
           tag: 'Before deactivating', title: 'Is the position currently vacant, with no future-dated changes moving someone into it?',
           sub: 'Both conditions must be true \u2014 SuccessFactors won\u2019t let you deactivate otherwise.',
           type: 'single', key: 'deactivateReady',
+          whatsNext: 'Once deactivated, its budgeted FTE is freed up \u2014 but reallocating that FTE elsewhere is a separate, deliberate step you\u2019ll still need to action yourself.',
           options: [
             { value: 'yes', label: 'Yes \u2014 it\u2019s vacant and nothing is scheduled to move someone in', next: 'recommendation' },
             { value: 'no', label: 'No \u2014 it\u2019s occupied, or someone has a future start date set', next: 'deactivate-blocked' },
@@ -169,6 +172,7 @@
           tag: 'Create \u2014 one more detail', title: 'Will this be an additional identical position, or something new?',
           sub: 'This decides whether you\u2019ll use Create Same-Level Position or Create Lower-Level Position in SuccessFactors.',
           type: 'single', key: 'createType',
+          whatsNext: 'Once this is approved and active, note its new Position Number straight away \u2014 you\u2019ll need it to raise a recruitment requisition, and SuccessFactors won\u2019t notify you on your homepage when it\u2019s approved.',
           options: [
             { value: 'same-level', label: 'Another identical position alongside one that already exists', sub: 'E.g. a second RN Grade 2 in the same ward \u2014 same cost centre, same everything.', next: 'business-case' },
             { value: 'lower-level', label: 'A genuinely new role, cost centre, or reporting line', sub: 'E.g. a new ward, a new manager position, a brand-new grant-funded role.', next: 'business-case' },
@@ -181,6 +185,7 @@
           tag: 'Approval impact', title: 'Do you have a Finance-approved business case ready to attach?',
           sub: 'This removes the Directorate Chief and CEO from your approval chain \u2014 5 stops becomes 3.',
           type: 'single', key: 'businessCase',
+          whatsNext: 'Answering Yes unlocks two more fields right after this \u2014 a Business Case Number and an attachment upload.',
           options: [
             { value: 'yes', label: 'Yes \u2014 I have it ready to attach', next: 'recommendation' },
             { value: 'no', label: 'No \u2014 I need to submit without one for now', next: 'recommendation' },
@@ -192,6 +197,7 @@
         return {
           tag: 'Before we go further', title: 'Does this position currently have anyone in it?',
           sub: null, type: 'single', key: 'occupied',
+          whatsNext: 'If it\u2019s occupied, the next question asks exactly which fields you\u2019re changing \u2014 so we can flag anything that won\u2019t reach the people already in the role automatically.',
           options: [
             { value: 'yes', label: 'Yes, it\u2019s occupied right now', next: 'what-changing' },
             { value: 'no', label: 'No, it\u2019s vacant', next: 'what-changing' },
@@ -203,6 +209,7 @@
         return {
           tag: 'What\u2019s changing', title: 'What do you need to change?', sub: null,
           type: 'single', key: 'whatChanging',
+          whatsNext: 'On an occupied position, changing the reporting line, cost centre, or classification routes you through one more check \u2014 confirming exactly which fields will reach the people already in the role.',
           options: [
             { value: 'fte', label: 'The budgeted FTE', next: 'fte-direction' },
             { value: 'other', label: 'Reporting line, cost centre, or another attribute', next: answers.occupied === 'yes' ? 'sync-fields' : 'recommendation' },
@@ -216,6 +223,7 @@
         return {
           tag: 'FTE change', title: 'Is the FTE increasing or decreasing?', sub: null,
           type: 'single', key: 'fteDirection',
+          whatsNext: 'Increasing leads to a business-case question next \u2014 having one ready from Finance cuts your approval chain from 5 stops down to 3.',
           options: [
             { value: 'increase', label: 'Increasing', next: 'business-case' },
             { value: 'decrease', label: 'Decreasing', next: 'recommendation' },
@@ -227,6 +235,7 @@
           tag: 'Occupied position', title: 'Which of these are you changing?',
           sub: 'Select everything that applies \u2014 we\u2019ll check each one against the synchronisation rules before you submit.',
           type: 'multi', key: 'syncFields',
+          whatsNext: 'Next we\u2019ll check every field you\u2019ve selected against the synchronisation rules, and flag clearly if any of them put incumbents\u2019 pay at risk.',
           options: PW.AMENDABLE_SYNC_FIELDS.map(f => ({ value: f.id, label: f.name })),
         };
 
@@ -535,8 +544,12 @@
     return candidates[0];
   }
 
-  /* ---------- Plain-text summary (for the Copy button) ---------- */
-  function recommendationToText(rec, scenario) {
+  /* ---------- Plain-text summary (for the Copy button) ----------
+     3.3 — trail is the manager's question-by-question decision path
+     (an array of { tag, title, answer }), supplied by the wizard's
+     Alpine state. Optional/defaults to none so this still works if
+     ever called without it. */
+  function recommendationToText(rec, scenario, trail) {
     const lines = [];
     lines.push('POSITION MANAGEMENT \u2014 RECOMMENDATION SUMMARY');
     lines.push('Generated by the Position Wizard (unofficial reference tool) \u2014 ' + new Date().toLocaleDateString('en-AU'));
@@ -575,6 +588,11 @@
       lines.push('');
       lines.push('SIMILAR REAL CASE \u2014 ' + scenario.title + ':');
       lines.push('  ' + scenario.action);
+    }
+    if (trail && trail.length) {
+      lines.push('');
+      lines.push('DECISION PATH (how this recommendation was reached):');
+      trail.forEach((t, i) => lines.push(`  ${i + 1}. ${t.title} \u2192 ${t.answer}`));
     }
     lines.push('');
     lines.push('This is an unofficial reference tool \u2014 confirm anything unusual with HR Services before submitting: ' + PW.HELP_URL);
