@@ -230,7 +230,7 @@
 .choice-tile.is-selected .choice-tile-marker svg { opacity: 1; }
 .choice-tile-marker.is-checkbox { border-radius: var(--radius-sm); }
 .choice-tile-body strong { display: block; font-size: var(--text-base); font-weight: 600; color: var(--text-1); }
-.choice-tile-body span { display: block; font-size: var(--text-sm); color: var(--text-2); margin-top: 2px; }
+.choice-tile-body > span { display: block; font-size: var(--text-sm); color: var(--text-2); margin-top: 2px; }
 
 /* ── Checklist (recommendation screen field list) ── */
 .checklist { display: flex; flex-direction: column; gap: 2px; }
@@ -464,3 +464,28 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: var(--radius-pill); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ── Glossary tooltips (jargon, e.g. FTE, EBA, incumbent) ── */
+.glossary-term {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: help;
+  text-decoration: underline dotted var(--brand-3) 1.5px;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+.glossary-term:hover, .glossary-term:focus-visible { color: var(--brand-1); }
+.glossary-term[aria-expanded="true"] { color: var(--brand-1); background: var(--brand-soft); border-radius: 2px; }
+
+.glossary-popover {
+  position: fixed; z-index: 200; width: 280px; max-width: calc(100vw - 24px);
+  background: var(--bg-elv); border: 1px solid var(--divider); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated); padding: 12px 14px; font-size: var(--text-sm); line-height: 1.5;
+}
+.glossary-popover-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.glossary-popover-term { font-weight: 700; color: var(--brand-1); font-size: var(--text-base); }
+.glossary-popover-close {
+  background: none; border: none; padding: 2px; margin: -2px -2px -2px 0; color: var(--text-3); cursor: pointer; border-radius: var(--radius-sm);
+}
+.glossary-popover-close:hover { color: var(--text-1); background: var(--bg-soft); }
+.glossary-popover-close svg { width: 14px; height: 14px; display: block; }
+.glossary-popover p { color: var(--text-1); margin: 0; }

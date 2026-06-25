@@ -20,6 +20,56 @@ PW.CATEGORIES = [
   'Capacity & Recruitment',
 ];
 
+/* ── Glossary \u2014 jargon tooltips for the non-technical audience.
+      `match` lists the regex fragments (case-insensitive, word-bounded)
+      that trigger the tooltip wherever they appear in running prose.
+      Wired up by PW.glossarize() in wizard-logic.js, surfaced via the
+      $store.glossary popover. Keep this list short and curated \u2014
+      it is meant for the handful of acronyms/terms a non-technical
+      manager genuinely won't know, not every field name. ── */
+PW.GLOSSARY = [
+  {
+    id: 'fte', term: 'FTE', match: ['FTEs?'],
+    def: 'Full-Time Equivalent \u2014 a fraction of a standard 38-hour week. 1.0 FTE is a full-time role, 0.5 FTE is half-time. Drives Hours Per Week and the budget a position is funded for.',
+  },
+  {
+    id: 'eba', term: 'EBA', match: ['EBAs?'],
+    def: 'Enterprise Bargaining Agreement \u2014 the negotiated pay-and-conditions agreement covering a profession (e.g. nurses, allied health). It sets the Pay Scale options and naming conventions for a role.',
+  },
+  {
+    id: 'incumbent', term: 'Incumbent', match: ['incumbents?'],
+    def: 'The person currently holding a position. A position can have one incumbent, several (if Multiple Holders is allowed), or none at all if it\u2019s vacant.',
+  },
+  {
+    id: 'cost-centre-term', term: 'Cost Centre', match: ['cost centres?'],
+    def: 'The budget code a position\u2019s salary is charged against. It decides which Finance Business Partner approves a change, and is one of the four things that decides Create vs Amend.',
+  },
+  {
+    id: 'business-case-term', term: 'Business Case', match: ['business cases?'],
+    def: 'Finance\u2019s written, numbered approval for funding a position change. Attaching one shortens the approval chain for several change types \u2014 but not all of them.',
+  },
+  {
+    id: 'send-back-term', term: 'Send Back', match: ['send backs?', 'sent back'],
+    def: 'An approver\u2019s rejection of your submission, returned to you for correction. It resets the whole approval chain back to the very first approver \u2014 the costliest mistake in the system.',
+  },
+  {
+    id: 'ahpra-term', term: 'AHPRA', match: ['AHPRA'],
+    def: 'Australian Health Practitioner Regulation Agency \u2014 the national body that registers regulated health professions, including doctors, nurses, and most allied health roles.',
+  },
+  {
+    id: 'wwcc-term', term: 'WWCC', match: ['WWCC', 'Working with Children Checks?'],
+    def: 'Working with Children Check \u2014 a legal screening requirement for any role with regular contact with children, such as paediatric, maternity, or child and adolescent mental health roles.',
+  },
+  {
+    id: 'ndis-term', term: 'NDIS', match: ['NDIS'],
+    def: 'National Disability Insurance Scheme \u2014 its worker-screening check applies to disability-support roles and any role with more than incidental contact with NDIS-funded participants.',
+  },
+  {
+    id: 'classification-term', term: 'Classification', match: ['(?:re)?classif(?:y|ying|ied|ication)s?'],
+    def: 'A role\u2019s pay grade under its EBA, set by Pay Scale Type, Area, Group and Level together. Changing it on an occupied position carries the highest payroll-mismatch risk of any amendment.',
+  },
+];
+
 /* ── The 36 position fields ── */
 PW.FIELDS = [
 {

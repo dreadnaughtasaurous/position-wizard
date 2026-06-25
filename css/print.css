@@ -10,7 +10,11 @@
   .view { max-width: 100%; padding: 0; }
 
   .btn, .icon-btn, .chip, .mobile-header, .sidebar, .sidebar-scrim,
-  .wizard-nav, .rec-actions, .filter-bar, .copy-feedback { display: none !important; }
+  .wizard-nav, .rec-actions, .filter-bar, .copy-feedback, .glossary-popover { display: none !important; }
+
+  .glossary-term {
+    color: inherit !important; text-decoration: none !important; cursor: default !important;
+  }
 
   .card, .tool-card, .callout, .rec-banner, .field-row {
     box-shadow: none !important;

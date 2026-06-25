@@ -707,6 +707,55 @@
     return lines.join('\n');
   }
 
+  /* ── Glossary tooltip linkifier ──
+     Wraps the first mention of each curated PW.GLOSSARY term in a
+     given string with a focusable <span class="glossary-term">,
+     so $store.glossary (app.js) can show its definition on click/tap.
+     Bind via x-html="PW.glossarize(...)" in place of x-text \u2014 only
+     on explanatory prose (paragraphs, list items, notes), never on
+     headings, field labels, or badges, to avoid visual clutter. ── */
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  let glossaryRegex = null;
+  let glossaryPatternIds = [];
+  function buildGlossaryRegex() {
+    if (glossaryRegex) return;
+    const entries = [];
+    (PW.GLOSSARY || []).forEach((g) => {
+      (g.match || []).forEach((src) => entries.push({ id: g.id, src }));
+    });
+    if (!entries.length) return;
+    // Longest fragment first so a shorter alternative can't shadow part
+    // of a longer one (e.g. "Working with Children Checks" vs "WWCC").
+    entries.sort((a, b) => b.src.length - a.src.length);
+    glossaryPatternIds = entries.map((e) => e.id);
+    const combined = entries.map((e) => `(${e.src})`).join('|');
+    glossaryRegex = new RegExp(`\\b(?:${combined})\\b`, 'gi');
+  }
+
+  function glossarize(text) {
+    if (!text) return '';
+    buildGlossaryRegex();
+    const escaped = escapeHtml(text);
+    if (!glossaryRegex) return escaped;
+    const seen = new Set();
+    glossaryRegex.lastIndex = 0;
+    return escaped.replace(glossaryRegex, (match, ...rest) => {
+      const captures = rest.slice(0, glossaryPatternIds.length);
+      const idx = captures.findIndex((g) => g !== undefined);
+      if (idx === -1) return match;
+      const id = glossaryPatternIds[idx];
+      if (seen.has(id)) return match; // only the first mention per block
+      seen.add(id);
+      return `<span class="glossary-term" tabindex="0" data-term="${id}">${match}</span>`;
+    });
+  }
+
   PW.getStepDef = function (step, answers) {
     const def = getStepDef(step, answers);
     if (!def) return def;
@@ -725,4 +774,6 @@
   PW.hoursToFte = hoursToFte;
   PW.getApprovalChain = getApprovalChain;
   PW.buildJustificationComment = buildJustificationComment;
+  PW.glossarize = glossarize;
+  PW.escapeHtml = escapeHtml;
 })();

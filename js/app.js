@@ -31,8 +31,51 @@ document.addEventListener('alpine:init', () => {
       this.previous = this.view;
       this.view = view;
       Alpine.store('ui').closeSidebar();
+      Alpine.store('glossary').close();
       window.scrollTo({ top: 0 });
       pwPushState();
+    },
+  });
+
+  /* ── Glossary tooltip popover \u2014 a single shared instance. Opened on
+     hover/focus of any .glossary-term span injected by PW.glossarize(),
+     with click/tap as the touch-device fallback (see the delegated
+     listeners below \u2014 these spans are raw injected HTML, so Alpine
+     directives never bind to them directly). ── */
+  Alpine.store('glossary', {
+    open: false,
+    id: null,
+    top: 0,
+    left: 0,
+    activeEl: null,
+    get entry() {
+      return (PW.GLOSSARY || []).find((g) => g.id === this.id) || null;
+    },
+    show(id, targetEl) {
+      if (this.activeEl && this.activeEl !== targetEl) this.activeEl.setAttribute('aria-expanded', 'false');
+      this.id = id;
+      this.open = true;
+      this.activeEl = targetEl || null;
+      if (targetEl) targetEl.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => this.position(targetEl));
+    },
+    position(targetEl) {
+      if (!targetEl) return;
+      const r = targetEl.getBoundingClientRect();
+      const popW = 280;
+      let left = r.left + r.width / 2 - popW / 2;
+      left = Math.max(12, Math.min(left, window.innerWidth - popW - 12));
+      let top = r.bottom + 8;
+      // Flip above the term if there isn't room below.
+      if (top + 140 > window.innerHeight) top = Math.max(8, r.top - 8 - 140);
+      this.top = top;
+      this.left = left;
+    },
+    close() {
+      if (this.activeEl) this.activeEl.setAttribute('aria-expanded', 'false');
+      this.open = false;
+      this.id = null;
+      this.activeEl = null;
     },
   });
 
@@ -1073,3 +1116,65 @@ function pwApplyState(state) {
 }
 
 window.addEventListener('popstate', (e) => pwApplyState(e.state));
+
+/* ---------- Glossary tooltips (hover-primary, delegated) ----------
+   .glossary-term spans are injected as raw HTML by PW.glossarize() (and a
+   few are hand-written directly in index.html), so Alpine directives never
+   bind to them -- these delegated listeners drive the shared $store.glossary
+   popover instead. Hover/focus is the main path; click/tap is the fallback
+   for touch devices, which never fire hover events. */
+let pwGlossaryHoverTimer = null;
+
+document.addEventListener('mouseover', (e) => {
+  const el = e.target.closest('.glossary-term');
+  if (!el) return;
+  clearTimeout(pwGlossaryHoverTimer);
+  pwGlossaryHoverTimer = setTimeout(() => Alpine.store('glossary').show(el.dataset.term, el), 120);
+});
+
+document.addEventListener('mouseout', (e) => {
+  const el = e.target.closest('.glossary-term');
+  if (!el) return;
+  clearTimeout(pwGlossaryHoverTimer);
+  Alpine.store('glossary').close();
+});
+
+document.addEventListener('focusin', (e) => {
+  const el = e.target.closest('.glossary-term');
+  if (el) Alpine.store('glossary').show(el.dataset.term, el);
+});
+
+document.addEventListener('focusout', (e) => {
+  const el = e.target.closest('.glossary-term');
+  if (el) Alpine.store('glossary').close();
+});
+
+// Capture phase: a glossary term can sit inside a clickable ancestor (a
+// home-page tool card, a wizard choice tile, etc.), so this must intercept
+// the click before it bubbles up and triggers that ancestor's own handler.
+document.addEventListener('click', (e) => {
+  const store = Alpine.store('glossary');
+  const el = e.target.closest('.glossary-term');
+  if (el) {
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimeout(pwGlossaryHoverTimer);
+    if (store.open && store.id === el.dataset.term) store.close();
+    else store.show(el.dataset.term, el);
+    return;
+  }
+  if (store.open && !e.target.closest('.glossary-popover')) store.close();
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  const el = e.target.closest && e.target.closest('.glossary-term');
+  if (el && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    Alpine.store('glossary').show(el.dataset.term, el);
+    return;
+  }
+  if (e.key === 'Escape') Alpine.store('glossary').close();
+});
+
+window.addEventListener('scroll', () => Alpine.store('glossary').close(), { passive: true, capture: true });
+window.addEventListener('resize', () => Alpine.store('glossary').close());

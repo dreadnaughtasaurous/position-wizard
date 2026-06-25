@@ -181,7 +181,7 @@
         <button class="tool-card" @click="$store.nav.go('sync')">
           <div class="tool-card-icon" style="background:var(--warning-bg); color:var(--warning)"><svg><use href="#i-shield"/></svg></div>
           <h3>Synchronisation Risk Checker</h3>
-          <p>About to amend an occupied position? Check exactly which fields will reach your incumbents automatically — and which won’t — before you submit.</p>
+          <p>About to amend an occupied position? Check exactly which fields will reach your <span class="glossary-term" tabindex="0" data-term="incumbent">incumbents</span> automatically — and which won’t — before you submit.</p>
           <span class="tool-card-cta">Check sync risk <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
@@ -202,7 +202,7 @@
         <button class="tool-card" @click="$store.nav.go('preflight')">
           <div class="tool-card-icon" style="background:var(--danger-bg); color:var(--danger)"><svg><use href="#i-check-circle"/></svg></div>
           <h3>Submission Readiness Check</h3>
-          <p>About to submit in SuccessFactors? Run your Change Reason, FTE, Pay Scale, business case, and Parent Position against the gotchas that trigger a Send Back — before you go in.</p>
+          <p>About to submit in SuccessFactors? Run your Change Reason, <span class="glossary-term" tabindex="0" data-term="fte">FTE</span>, Pay Scale, <span class="glossary-term" tabindex="0" data-term="business-case-term">business case</span>, and Parent Position against the gotchas that trigger a <span class="glossary-term" tabindex="0" data-term="send-back-term">Send Back</span> — before you go in.</p>
           <span class="tool-card-cta">Run the check <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
@@ -216,7 +216,7 @@
         <button class="tool-card" @click="$store.nav.go('fte')">
           <div class="tool-card-icon" style="background:var(--brand-soft); color:var(--brand-2)"><svg><use href="#i-calculator"/></svg></div>
           <h3>FTE &amp; Hours Calculator</h3>
-          <p>Convert Target FTE to Hours Per Week and back, instantly — no more arithmetic on the most consequential field in the record. Flags Multiple Holders Allowed the moment FTE goes above 1.0.</p>
+          <p>Convert Target <span class="glossary-term" tabindex="0" data-term="fte">FTE</span> to Hours Per Week and back, instantly — no more arithmetic on the most consequential field in the record. Flags Multiple Holders Allowed the moment FTE goes above 1.0.</p>
           <span class="tool-card-cta">Open the calculator <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
@@ -255,7 +255,7 @@
               </button>
               <div class="wizard-question-tag" x-text="question?.tag"></div>
               <h2 x-text="question?.title"></h2>
-              <p class="wizard-sub" x-show="question?.sub" x-text="question?.sub"></p>
+              <p class="wizard-sub" x-show="question?.sub" x-html="PW.glossarize(question?.sub)"></p>
               <ul class="wizard-checksteps" x-show="question?.checkSteps">
                 <template x-for="(cs, i) in (question?.checkSteps || [])" :key="i"><li x-text="cs"></li></template>
               </ul>
@@ -265,7 +265,7 @@
                 <svg><use href="#i-arrow-right"/></svg>
                 <div>
                   <span class="whats-next-label">What’s next</span>
-                  <p x-text="question?.whatsNext"></p>
+                  <p x-html="PW.glossarize(question?.whatsNext)"></p>
                 </div>
               </div>
 
@@ -276,7 +276,7 @@
                     <span class="choice-tile-marker"><svg><use href="#i-arrow-right"/></svg></span>
                     <span class="choice-tile-body">
                       <strong x-text="opt.label"></strong>
-                      <span x-show="opt.sub" x-text="opt.sub"></span>
+                      <span x-show="opt.sub" x-html="PW.glossarize(opt.sub)"></span>
                     </span>
                   </button>
                 </template>
@@ -329,14 +329,14 @@
             </div>
           </div>
 
-          <p style="font-size:var(--text-lg); color:var(--text-2); margin-bottom:26px;" x-text="recommendation.actionDetail"></p>
+          <p style="font-size:var(--text-lg); color:var(--text-2); margin-bottom:26px;" x-html="PW.glossarize(recommendation.actionDetail)"></p>
 
           <template x-if="matchedScenario">
             <div class="callout callout-scenario" style="margin-bottom:26px">
               <svg><use href="#i-info"/></svg>
               <div>
                 <strong x-text="`Similar real case — ${matchedScenario.title}`"></strong>
-                <p x-text="matchedScenario.situation"></p>
+                <p x-html="PW.glossarize(matchedScenario.situation)"></p>
               </div>
             </div>
           </template>
@@ -346,11 +346,11 @@
               <svg><use :href="recommendation.syncWarning.risky ? '#i-alert-triangle' : '#i-alert-circle'"/></svg>
               <div>
                 <strong x-text="recommendation.syncWarning.risky ? 'High payroll risk — read before synchronising' : 'Occupied position'"></strong>
-                <p x-text="recommendation.syncWarning.text"></p>
+                <p x-html="PW.glossarize(recommendation.syncWarning.text)"></p>
                 <template x-if="recommendation.syncWarning.action">
                   <div class="action-cta">
                     <svg><use href="#i-arrow-right"/></svg>
-                    <div><strong x-text="recommendation.syncWarning.action.label"></strong><p x-text="recommendation.syncWarning.action.detail"></p></div>
+                    <div><strong x-text="recommendation.syncWarning.action.label"></strong><p x-html="PW.glossarize(recommendation.syncWarning.action.detail)"></p></div>
                   </div>
                 </template>
                 <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="$store.nav.go('sync')">Open Synchronisation Risk Checker <svg><use href="#i-arrow-right"/></svg></button></p>
@@ -374,10 +374,10 @@
             <template x-if="recommendation.chainHeadline">
               <div class="callout callout-info" style="margin-top:14px">
                 <svg><use href="#i-info"/></svg>
-                <div><strong x-text="recommendation.chainHeadline"></strong><p x-text="recommendation.chainNote"></p></div>
+                <div><strong x-text="recommendation.chainHeadline"></strong><p x-html="PW.glossarize(recommendation.chainNote)"></p></div>
               </div>
             </template>
-            <p class="field-hint" x-show="!recommendation.chainHeadline" x-text="recommendation.chainNote"></p>
+            <p class="field-hint" x-show="!recommendation.chainHeadline" x-html="PW.glossarize(recommendation.chainNote)"></p>
           </div>
 
           <div class="rec-section" x-show="!recommendation.stops.length">
@@ -400,7 +400,7 @@
                     <span class="checklist-num" x-text="i + 1"></span>
                     <div class="checklist-body">
                       <strong x-text="item.title || (item.fieldId ? PW.FIELDS.find(f => f.id === item.fieldId)?.name : 'Also check')"></strong>
-                      <p x-text="item.customNote || PW.FIELDS.find(f => f.id === item.fieldId)?.enter"></p>
+                      <p x-html="PW.glossarize(item.customNote || PW.FIELDS.find(f => f.id === item.fieldId)?.enter)"></p>
                     </div>
                   </div>
                 </template>
@@ -414,7 +414,7 @@
               <template x-for="(s, i) in recommendation.steps" :key="i">
                 <div class="step-item">
                   <span class="step-item-num"></span>
-                  <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-text="s.body"></p></div>
+                  <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-html="PW.glossarize(s.body)"></p></div>
                 </div>
               </template>
             </div>
@@ -459,7 +459,7 @@
               <strong>Before you head into SuccessFactors</strong>
               <div class="action-cta">
                 <svg><use href="#i-arrow-right"/></svg>
-                <div><strong>Run the Submission Readiness Check</strong><p>Cross-checks Change Reason, Multiple Holders vs FTE, business case format, Pay Scale, and Parent Position against this recommendation before you submit.</p></div>
+                <div><strong>Run the Submission Readiness Check</strong><p>Cross-checks Change Reason, Multiple Holders vs <span class="glossary-term" tabindex="0" data-term="fte">FTE</span>, <span class="glossary-term" tabindex="0" data-term="business-case-term">business case</span> format, Pay Scale, and Parent Position against this recommendation before you submit.</p></div>
               </div>
               <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="window.__pwPreflight && window.__pwPreflight.refresh(); $store.nav.go('preflight')">Open Submission Readiness Check <svg><use href="#i-arrow-right"/></svg></button></p>
             </div>
@@ -534,11 +534,11 @@
             <div class="field-row-detail" x-show="openId === f.id" @click.stop>
               <div>
                 <h5>What it does</h5>
-                <p x-text="f.does"></p>
+                <p x-html="PW.glossarize(f.does)"></p>
               </div>
               <div>
                 <h5>What to enter</h5>
-                <p x-text="f.enter"></p>
+                <p x-html="PW.glossarize(f.enter)"></p>
               </div>
               <div class="callout callout-warning" x-show="f.id === 'comment'" style="margin:2px 0">
                 <svg><use href="#i-alert-circle"/></svg>
@@ -549,14 +549,14 @@
               </div>
               <div x-show="f.mistakes && f.mistakes.length">
                 <h5>Common mistakes</h5>
-                <ul><template x-for="m in f.mistakes" :key="m"><li x-text="m"></li></template></ul>
+                <ul><template x-for="m in f.mistakes" :key="m"><li x-html="PW.glossarize(m)"></li></template></ul>
               </div>
               <div x-show="f.dependsOn">
                 <span class="badge badge-info" x-text="f.dependsOn"></span>
               </div>
               <div x-show="f.syncs !== null" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span class="badge" :class="f.syncs ? 'badge-success' : 'badge-neutral'" x-text="f.syncs ? 'Synchronises to incumbents' : 'Does not synchronise'"></span>
-                <span class="field-hint" x-show="f.syncNote" x-text="f.syncNote" style="margin:0"></span>
+                <span class="field-hint" x-show="f.syncNote" x-html="PW.glossarize(f.syncNote)" style="margin:0"></span>
               </div>
             </div>
           </div>
@@ -570,7 +570,7 @@
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-shield"/></svg> Before you amend</div>
         <h1>Synchronisation Risk Checker</h1>
-        <p class="lede">Find out exactly which of your changes reach incumbents automatically — and which don't — before you answer "Yes, synchronise" at submission.</p>
+        <p class="lede">Find out exactly which of your changes reach <span class="glossary-term" tabindex="0" data-term="incumbent">incumbents</span> automatically — and which don't — before you answer "Yes, synchronise" at submission.</p>
       </div>
 
       <div class="field-label">Is this position currently occupied?</div>
@@ -618,11 +618,11 @@
                 recommendation.tone === 'warning' ? 'These fields need updating individually' :
                 recommendation.tone === 'success' ? 'Safe to synchronise' : 'Heads up'
               "></strong>
-              <p x-text="recommendation.text"></p>
+              <p x-html="PW.glossarize(recommendation.text)"></p>
               <template x-if="recommendation.action">
                 <div class="action-cta">
                   <svg><use href="#i-arrow-right"/></svg>
-                  <div><strong x-text="recommendation.action.label"></strong><p x-text="recommendation.action.detail"></p></div>
+                  <div><strong x-text="recommendation.action.label"></strong><p x-html="PW.glossarize(recommendation.action.detail)"></p></div>
                 </div>
               </template>
             </div>
@@ -636,7 +636,7 @@
                   <tr>
                     <td x-text="f.name"></td>
                     <td><span class="badge" :class="f.syncs ? 'badge-success' : 'badge-neutral'" x-text="f.syncs ? 'Yes' : 'No'"></span></td>
-                    <td class="field-hint" style="margin:0" x-text="f.note || (f.syncs ? 'Updates the incumbent&#8217;s Job Information record.' : 'Update each incumbent&#8217;s record individually if needed.')"></td>
+                    <td class="field-hint" style="margin:0" x-html="PW.glossarize(f.note || (f.syncs ? 'Updates the incumbent’s Job Information record.' : 'Update each incumbent’s record individually if needed.'))"></td>
                   </tr>
                 </template>
               </tbody>
@@ -716,17 +716,17 @@
             <template x-if="chain.headline">
               <div class="callout callout-info" style="margin-top:14px">
                 <svg><use href="#i-info"/></svg>
-                <div><strong x-text="chain.headline"></strong><p x-text="chain.note"></p></div>
+                <div><strong x-text="chain.headline"></strong><p x-html="PW.glossarize(chain.note)"></p></div>
               </div>
             </template>
-            <p class="field-hint" x-show="!chain.headline" x-text="chain.note"></p>
+            <p class="field-hint" x-show="!chain.headline" x-html="PW.glossarize(chain.note)"></p>
           </div>
 
           <div class="callout callout-info">
             <svg><use href="#i-info"/></svg>
             <div>
               <strong>To speed up approval</strong>
-              <p>Confirm your cost centre with your Finance Business Partner before submitting, attach a business case reference number whenever one applies, and use the submission comments box — not the position Comment field — to flag genuine urgency to approvers.</p>
+              <p>Confirm your <span class="glossary-term" tabindex="0" data-term="cost-centre-term">cost centre</span> with your Finance Business Partner before submitting, attach a <span class="glossary-term" tabindex="0" data-term="business-case-term">business case</span> reference number whenever one applies, and use the submission comments box — not the position Comment field — to flag genuine urgency to approvers.</p>
             </div>
           </div>
         </div>
@@ -894,10 +894,10 @@
                   <svg><use href="#i-alert-triangle"/></svg>
                   <div>
                     <strong>High payroll risk — read before submitting</strong>
-                    <p>This position is occupied and Pay Scale Level is part of the change. Type, Area, and Group synchronise to incumbents automatically — Level does not. Incumbents could end up with a classification and pay point that no longer align. Verify every incumbent's current Pay Scale Level first.</p>
+                    <p>This position is occupied and Pay Scale Level is part of the change. Type, Area, and Group synchronise to <span class="glossary-term" tabindex="0" data-term="incumbent">incumbents</span> automatically — Level does not. Incumbents could end up with a <span class="glossary-term" tabindex="0" data-term="classification-term">classification</span> and pay point that no longer align. Verify every incumbent's current Pay Scale Level first.</p>
                     <div class="action-cta">
                       <svg><use href="#i-arrow-right"/></svg>
-                      <div><strong x-text="PW.SAFER_ALTERNATIVE.label"></strong><p x-text="PW.SAFER_ALTERNATIVE.detail"></p></div>
+                      <div><strong x-text="PW.SAFER_ALTERNATIVE.label"></strong><p x-html="PW.glossarize(PW.SAFER_ALTERNATIVE.detail)"></p></div>
                     </div>
                     <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="$store.nav.go('sync')">Open Synchronisation Risk Checker <svg><use href="#i-arrow-right"/></svg></button></p>
                   </div>
@@ -951,10 +951,10 @@
                   <template x-if="chain.headline">
                     <div class="callout callout-info" style="margin-top:14px">
                       <svg><use href="#i-info"/></svg>
-                      <div><strong x-text="chain.headline"></strong><p x-text="chain.note"></p></div>
+                      <div><strong x-text="chain.headline"></strong><p x-html="PW.glossarize(chain.note)"></p></div>
                     </div>
                   </template>
-                  <p class="field-hint" x-show="!chain.headline" x-text="chain.note"></p>
+                  <p class="field-hint" x-show="!chain.headline" x-html="PW.glossarize(chain.note)"></p>
                 </div>
               </template>
 
@@ -991,7 +991,7 @@
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-check-circle"/></svg> Before you submit</div>
         <h1>Submission Readiness Check</h1>
-        <p class="lede">A final pass over the gotchas that send a request straight back to you — Change Reason, Multiple Holders vs FTE, business case format, Pay Scale, and Parent Position — checked before your approval chain resets.</p>
+        <p class="lede">A final pass over the gotchas that send a request straight back to you — Change Reason, Multiple Holders vs <span class="glossary-term" tabindex="0" data-term="fte">FTE</span>, <span class="glossary-term" tabindex="0" data-term="business-case-term">business case</span> format, Pay Scale, and Parent Position — checked before your approval chain resets.</p>
       </div>
 
       <!-- Wizard outcomes that never touch the Position record at all -->
@@ -1030,7 +1030,7 @@
             <svg><use :href="summary.tone === 'danger' ? '#i-alert-triangle' : summary.tone === 'warning' ? '#i-alert-circle' : summary.tone === 'success' ? '#i-check-circle' : '#i-info'"/></svg>
             <div>
               <strong x-text="summary.tone === 'danger' ? 'Not ready yet' : summary.tone === 'warning' ? 'Almost there' : summary.tone === 'success' ? 'Ready for SuccessFactors' : 'Get started'"></strong>
-              <p x-text="summary.text"></p>
+              <p x-html="PW.glossarize(summary.text)"></p>
             </div>
           </div>
 
@@ -1040,7 +1040,7 @@
               <strong>1. Change Reason matches intent</strong>
               <span class="badge" :class="badgeClass(reasonCheck.status)" x-text="badgeLabel(reasonCheck.status)"></span>
             </div>
-            <p class="field-hint" style="margin:6px 0 14px" x-text="reasonCheck.text"></p>
+            <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(reasonCheck.text)"></p>
             <div class="choice-grid" style="gap:8px">
               <template x-for="cr in PW.CHANGE_REASONS" :key="cr.id">
                 <button class="choice-tile" style="padding:12px 14px" :class="{ 'is-selected': changeReasonId === cr.id }" @click="selectChangeReason(cr.id)">
@@ -1062,7 +1062,7 @@
                   <strong>2. Multiple Holders vs Target FTE</strong>
                   <span class="badge" :class="badgeClass(fteCheck.status)" x-text="badgeLabel(fteCheck.status)"></span>
                 </div>
-                <p class="field-hint" style="margin:6px 0 14px" x-text="fteCheck.text"></p>
+                <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(fteCheck.text)"></p>
                 <template x-if="relevance.fte">
                   <div style="display:flex; flex-direction:column; gap:14px; max-width:320px">
                     <div>
@@ -1090,7 +1090,7 @@
                   <strong>3. Business Case Number format</strong>
                   <span class="badge" :class="badgeClass(bcCheck.status)" x-text="badgeLabel(bcCheck.status)"></span>
                 </div>
-                <p class="field-hint" style="margin:6px 0 14px" x-text="bcCheck.text"></p>
+                <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(bcCheck.text)"></p>
                 <template x-if="relevance.businessCase">
                   <div style="display:flex; flex-direction:column; gap:14px; max-width:320px">
                     <div>
@@ -1118,7 +1118,7 @@
                   <strong>4. Pay Scale at Year 1 / Level 1</strong>
                   <span class="badge" :class="badgeClass(payScaleCheck.status)" x-text="badgeLabel(payScaleCheck.status)"></span>
                 </div>
-                <p class="field-hint" style="margin:6px 0 14px" x-text="payScaleCheck.text"></p>
+                <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(payScaleCheck.text)"></p>
                 <template x-if="relevance.payScale">
                   <div class="choice-grid" style="grid-template-columns:repeat(3,1fr); max-width:460px">
                     <button class="choice-tile" style="padding:10px 12px" :class="{ 'is-selected': payScaleConfirmed === 'yes' }" @click="payScaleConfirmed = 'yes'">
@@ -1140,7 +1140,7 @@
                   <strong>5. Parent Position verified</strong>
                   <span class="badge" :class="badgeClass(parentPositionCheck.status)" x-text="badgeLabel(parentPositionCheck.status)"></span>
                 </div>
-                <p class="field-hint" style="margin:6px 0 14px" x-text="parentPositionCheck.text"></p>
+                <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(parentPositionCheck.text)"></p>
                 <template x-if="relevance.parentPosition === 'conditional'">
                   <div style="margin-bottom:14px; max-width:320px">
                     <label class="field-label">Is the reporting line (Parent Position) part of this change?</label>
@@ -1189,13 +1189,13 @@
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-power"/></svg> Before you submit</div>
         <h1>Deactivation Checklist</h1>
-        <p class="lede">Guide 7 is specific: a position can only be set to Inactive while it's genuinely vacant, with nothing future-dated scheduled to move someone into it — plus a comment explaining why, since that's what actually frees the FTE up for reallocation.</p>
+        <p class="lede">Guide 7 is specific: a position can only be set to Inactive while it's genuinely vacant, with nothing future-dated scheduled to move someone into it — plus a comment explaining why, since that's what actually frees the <span class="glossary-term" tabindex="0" data-term="fte">FTE</span> up for reallocation.</p>
       </div>
 
       <template x-if="wizardNote">
         <div class="callout callout-info" style="margin-bottom:22px">
           <svg><use href="#i-info"/></svg>
-          <div><p x-text="wizardNote"></p></div>
+          <div><p x-html="PW.glossarize(wizardNote)"></p></div>
         </div>
       </template>
 
@@ -1220,7 +1220,7 @@
         <svg><use :href="summary.tone === 'danger' ? '#i-alert-triangle' : summary.tone === 'warning' ? '#i-alert-circle' : summary.tone === 'success' ? '#i-check-circle' : '#i-info'"/></svg>
         <div>
           <strong x-text="summary.tone === 'danger' ? 'Not ready yet' : summary.tone === 'warning' ? 'Almost there' : summary.tone === 'success' ? 'Ready to deactivate' : 'Get started'"></strong>
-          <p x-text="summary.text"></p>
+          <p x-html="PW.glossarize(summary.text)"></p>
         </div>
       </div>
 
@@ -1230,7 +1230,7 @@
           <strong>1. Position is genuinely vacant</strong>
           <span class="badge" :class="badgeClass(vacantCheck.status)" x-text="badgeLabel(vacantCheck.status)"></span>
         </div>
-        <p class="field-hint" style="margin:6px 0 14px" x-text="vacantCheck.text"></p>
+        <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(vacantCheck.text)"></p>
         <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:420px">
           <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': vacant === 'yes' }" @click="vacant = 'yes'">
             <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes, vacant</strong></span>
@@ -1247,7 +1247,7 @@
           <strong>2. No future-dated change moving someone in</strong>
           <span class="badge" :class="badgeClass(futureDatedCheck.status)" x-text="badgeLabel(futureDatedCheck.status)"></span>
         </div>
-        <p class="field-hint" style="margin:6px 0 14px" x-text="futureDatedCheck.text"></p>
+        <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(futureDatedCheck.text)"></p>
         <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:420px">
           <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': futureDated === 'no' }" @click="futureDated = 'no'">
             <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No, nothing scheduled</strong></span>
@@ -1264,7 +1264,7 @@
           <strong>3. Reallocation comment drafted</strong>
           <span class="badge" :class="badgeClass(commentCheck.status)" x-text="badgeLabel(commentCheck.status)"></span>
         </div>
-        <p class="field-hint" style="margin:6px 0 14px" x-text="commentCheck.text"></p>
+        <p class="field-hint" style="margin:6px 0 14px" x-html="PW.glossarize(commentCheck.text)"></p>
         <label class="field-label">Comment to paste into the position's Comment field</label>
         <textarea class="input" rows="3" style="margin-top:6px; max-width:520px; resize:vertical" placeholder="e.g. Position deactivated — 1.0 FTE reallocated to the new Cardiology Outpatients position (PN 712345)." x-model="comment"></textarea>
       </div>
@@ -1275,7 +1275,7 @@
           <template x-for="(s, i) in PW.DEACTIVATE_STEPS" :key="i">
             <div class="step-item">
               <span class="step-item-num"></span>
-              <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-text="s.body"></p></div>
+              <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-html="PW.glossarize(s.body)"></p></div>
             </div>
           </template>
         </div>
@@ -1297,7 +1297,7 @@
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-calculator"/></svg> Quick reference</div>
         <h1>FTE &amp; Hours Calculator</h1>
-        <p class="lede">Target FTE is the single most consequential field on a position. Convert it to Hours Per Week — or work backwards from hours to FTE — without doing the arithmetic by hand. Figures here are net hours, excluding ADO accrual.</p>
+        <p class="lede">Target <span class="glossary-term" tabindex="0" data-term="fte">FTE</span> is the single most consequential field on a position. Convert it to Hours Per Week — or work backwards from hours to FTE — without doing the arithmetic by hand. Figures here are net hours, excluding ADO accrual.</p>
       </div>
 
       <div class="card" style="max-width:560px; padding:22px 24px;">
@@ -1332,7 +1332,7 @@
           <svg><use href="#i-alert-circle"/></svg>
           <div>
             <strong>Multiple Holders Allowed must be set to Yes</strong>
-            <p>Target FTE of <span x-text="fte"></span> is above 1.0 — more than one incumbent will sit in this single position record, so Multiple Holders Allowed has to be Yes, or the position can't actually carry the people it's funded for.</p>
+            <p>Target <span class="glossary-term" tabindex="0" data-term="fte">FTE</span> of <span x-text="fte"></span> is above 1.0 — more than one <span class="glossary-term" tabindex="0" data-term="incumbent">incumbent</span> will sit in this single position record, so Multiple Holders Allowed has to be Yes, or the position can't actually carry the people it's funded for.</p>
           </div>
         </div>
       </template>
@@ -1394,7 +1394,7 @@
       </div>
       <p class="lifecycle-loop-note">
         <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"><use href="#i-refresh"/></svg>
-        Deactivating a position frees FTE that often funds a brand-new one elsewhere — the cycle returns to <strong>Submit</strong>.
+        Deactivating a position frees <span class="glossary-term" tabindex="0" data-term="fte">FTE</span> that often funds a brand-new one elsewhere — the cycle returns to <strong>Submit</strong>.
       </p>
 
       <template x-if="activeStage">
@@ -1408,16 +1408,16 @@
             <span class="badge badge-info" x-show="hereStageId === activeStage.id">You are here</span>
           </div>
 
-          <p style="font-size:var(--text-lg); color:var(--text-2); margin:14px 0 18px" x-text="activeStage.summary"></p>
+          <p style="font-size:var(--text-lg); color:var(--text-2); margin:14px 0 18px" x-html="PW.glossarize(activeStage.summary)"></p>
 
           <ul class="lifecycle-detail-list">
-            <template x-for="(d, i) in activeStage.details" :key="i"><li x-text="d"></li></template>
+            <template x-for="(d, i) in activeStage.details" :key="i"><li x-html="PW.glossarize(d)"></li></template>
           </ul>
 
           <template x-if="activeStage.loopNote">
             <p class="field-hint" style="margin-top:14px; display:flex; align-items:flex-start; gap:6px;">
               <svg style="width:13px;height:13px;flex-shrink:0;margin-top:3px"><use href="#i-refresh"/></svg>
-              <span x-text="activeStage.loopNote"></span>
+              <span x-html="PW.glossarize(activeStage.loopNote)"></span>
             </p>
           </template>
 
@@ -1442,6 +1442,26 @@
     </section>
 
   </main>
+</div>
+
+<!-- ============================================================
+     GLOSSARY TOOLTIP POPOVER — single shared instance, opened by
+     clicking/tapping any .glossary-term button (see app.js / $store.glossary)
+     ============================================================ -->
+<div class="glossary-popover no-print" x-show="$store.glossary.open" x-cloak
+     :style="`top:${$store.glossary.top}px; left:${$store.glossary.left}px`"
+     role="tooltip" x-transition.duration.120ms>
+  <template x-if="$store.glossary.entry">
+    <div>
+      <div class="glossary-popover-head">
+        <span class="glossary-popover-term" x-text="$store.glossary.entry.term"></span>
+        <button type="button" class="glossary-popover-close" aria-label="Close" @click="$store.glossary.close()">
+          <svg><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <p x-text="$store.glossary.entry.def"></p>
+    </div>
+  </template>
 </div>
 
 </body>
