@@ -1096,18 +1096,20 @@
         </div>
       </template>
 
-      <div class="chain lifecycle-chain">
-        <template x-for="(stage, i) in stages" :key="stage.id">
-          <span style="display:flex;align-items:stretch">
-            <button type="button" class="chain-stop lifecycle-node" :class="{ 'is-selected': selected === stage.id }" @click="select(stage.id)">
-              <span class="chain-stop-icon lifecycle-node-icon">
-                <svg><use :href="stage.icon"/></svg>
-                <span class="lifecycle-here-dot" x-show="hereStageId === stage.id" title="You are here"></span>
-              </span>
-              <span class="chain-stop-label" x-text="stage.label"></span>
-            </button>
-            <span class="chain-arrow" x-show="i < stages.length - 1"><svg><use href="#i-arrow-right"/></svg></span>
-          </span>
+      <div class="lifecycle-chain">
+        <div class="lifecycle-track" aria-hidden="true"></div>
+        <template x-for="stage in stages" :key="stage.id">
+          <button
+            type="button"
+            class="lifecycle-step"
+            :class="{ 'is-active': selected === stage.id, 'is-here': hereStageId === stage.id }"
+            @click="select(stage.id)"
+            :title="hereStageId === stage.id ? 'You are here \u2014 ' + stage.label : stage.label"
+          >
+            <span class="lifecycle-step-num" x-text="String(stage.n).padStart(2, '0')"></span>
+            <span class="lifecycle-step-dot"></span>
+            <span class="lifecycle-step-label" x-text="stage.label"></span>
+          </button>
         </template>
       </div>
       <p class="lifecycle-loop-note">
