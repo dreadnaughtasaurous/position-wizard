@@ -589,6 +589,69 @@
     return roundTo(hours / (standardHours || PW.STANDARD_FTE_HOURS), 4);
   }
 
+  /* ---------- 1. — Change Preview: approval chain lookup ----------
+     The same change-reason \u2192 chain-key mapping buildRecommendation()
+     applies internally, exposed standalone so the Change Preview tool
+     can compute a chain from a manually-picked Change Reason without
+     needing a full wizard answers object. 'create' is deliberately
+     not handled here \u2014 Change Preview is amend-only, since Create has
+     no old value to diff against. */
+  function getApprovalChain(changeReasonId, fteDirection, businessCase) {
+    if (!changeReasonId || changeReasonId === 'create') return null;
+    const chainKey = changeReasonId === 'fte'
+      ? (fteDirection === 'decrease' ? 'fte_decrease' : 'fte_increase')
+      : changeReasonId;
+    const entry = PW.APPROVAL_CHAINS[chainKey];
+    if (!entry) return null;
+    const bcRelevant = chainKey === 'fte_increase';
+    const stops = bcRelevant ? (businessCase === 'yes' ? entry.withBC : entry.noBC) : entry.noBC;
+    return { stops, note: entry.note, headline: entry.headline || null, key: chainKey, bcRelevant };
+  }
+
+  /* ---------- 1. — Change Preview: justification comment generator ----------
+     A first-draft comment for the submission comments box, built from
+     the same field-level old\u2192new diff the Change Summary card shows.
+     Always left editable in the UI \u2014 this is a starting point, never
+     submitted verbatim. rows: [{ name, old, new, syncs, payScaleWarning }].
+     ctx.incumbentCount is optional (blank \u2192 generic phrasing). */
+  function buildJustificationComment(changeReasonId, rows, ctx) {
+    ctx = ctx || {};
+    const posRef = ctx.positionRef ? ` for ${ctx.positionRef}` : '';
+    const verbed = (rows || []).filter(r => (r.old || '').trim() || (r.new || '').trim());
+    if (!verbed.length) return `Requesting approval to amend this position${posRef}.`;
+
+    const sentences = [];
+    const dash = '\u2014', arrow = '\u2192';
+    if (changeReasonId === 'fte') {
+      const r = verbed[0];
+      const dir = ctx.fteDirection === 'decrease' ? 'decrease' : 'increase';
+      sentences.push(`Requesting a Target FTE ${dir} from ${r.old || dash} to ${r.new || dash}${posRef}.`);
+    } else if (changeReasonId === 'title') {
+      const r = verbed[0];
+      sentences.push(`Requesting a Position Title change from \u201c${r.old || dash}\u201d to \u201c${r.new || dash}\u201d${posRef}.`);
+    } else {
+      const list = verbed.map(r => `${r.name} (${r.old || dash} ${arrow} ${r.new || dash})`).join(', ');
+      const label = changeReasonId === 'classification' ? 'a classification change' : 'the following change' + (verbed.length === 1 ? '' : 's');
+      sentences.push(`Requesting ${label}${posRef}: ${list}.`);
+    }
+
+    if (ctx.businessCase === 'yes' && ctx.businessCaseNumber) {
+      sentences.push(`Business case ${ctx.businessCaseNumber} is attached.`);
+    }
+
+    if (ctx.occupied === 'yes') {
+      const risky = verbed.some(r => r.payScaleWarning);
+      const countPhrase = ctx.incumbentCount ? `${ctx.incumbentCount} current incumbent${String(ctx.incumbentCount) === '1' ? '' : 's'}` : 'current incumbents';
+      if (risky) {
+        sentences.push('Note: Pay Scale Level does not synchronise automatically \u2014 incumbent pay points have been verified separately.');
+      } else if (verbed.some(r => r.syncs)) {
+        sentences.push(`This change will synchronise to ${countPhrase}\u2019 Job Information records.`);
+      }
+    }
+
+    return sentences.join(' ');
+  }
+
   /* ---------- Plain-text summary (for the Copy button) ----------
      3.3 — trail is the manager's question-by-question decision path
      (an array of { tag, title, answer }), supplied by the wizard's
@@ -660,4 +723,6 @@
   PW.isGenericDeactivationComment = isGenericDeactivationComment;
   PW.fteToHours = fteToHours;
   PW.hoursToFte = hoursToFte;
+  PW.getApprovalChain = getApprovalChain;
+  PW.buildJustificationComment = buildJustificationComment;
 })();

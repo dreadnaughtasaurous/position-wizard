@@ -55,6 +55,7 @@
 <symbol id="i-calculator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 6.5h8"/><path d="M8 11.2h.01M12 11.2h.01M16 11.2h.01M8 14.8h.01M12 14.8h.01M16 14.8h.01M8 18.4h.01M12 18.4h.01"/></symbol>
 <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7.5 10-7.5S22 12 22 12s-4 7.5-10 7.5S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></symbol>
 </defs>
 </svg>
 
@@ -104,6 +105,9 @@
       </button>
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'approval' }" @click="$store.nav.go('approval')">
         <svg><use href="#i-flow"/></svg> Approval Estimator
+      </button>
+      <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'preview' }" @click="$store.nav.go('preview')">
+        <svg><use href="#i-eye"/></svg> Change Preview
       </button>
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'preflight' }" @click="$store.nav.go('preflight')">
         <svg><use href="#i-check-circle"/></svg> Submission Readiness
@@ -186,6 +190,13 @@
           <h3>Approval Chain Estimator</h3>
           <p>See exactly how many approvers your request will go to, and who they are, before you submit anything.</p>
           <span class="tool-card-cta">Estimate approval <svg><use href="#i-arrow-right"/></svg></span>
+        </button>
+
+        <button class="tool-card" @click="$store.nav.go('preview')">
+          <div class="tool-card-icon" style="background:var(--brand-soft); color:var(--brand-1)"><svg><use href="#i-eye"/></svg></div>
+          <h3>Change Preview</h3>
+          <p>See your amendment exactly as it lands on an approver's screen — old value struck through next to new, your approval chain, and a first-draft submission comment.</p>
+          <span class="tool-card-cta">Build a preview <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
         <button class="tool-card" @click="$store.nav.go('preflight')">
@@ -419,6 +430,22 @@
                   <div class="step-item-body"><strong x-text="t.title"></strong><p x-text="t.answer"></p></div>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- 1. — hand this recommendation to the Change Preview tool.
+               Only shown for genuine amendments — Create, Transfer,
+               Individual variation, and Deactivate have no "old value"
+               to diff against, so the tool doesn't apply to them. -->
+          <div class="callout callout-info no-print" x-show="recommendation.path === 'amend'" style="margin-bottom:26px">
+            <svg><use href="#i-eye"/></svg>
+            <div>
+              <strong>See this exactly as your approvers will</strong>
+              <div class="action-cta">
+                <svg><use href="#i-arrow-right"/></svg>
+                <div><strong>Build a Change Preview</strong><p>Each field as old value crossed out next to the new one — the same Change Summary approvers see — plus your approval chain and a first-draft submission comment.</p></div>
+              </div>
+              <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="window.__pwChangePreview && window.__pwChangePreview.refresh(); $store.nav.go('preview')">Open Change Preview <svg><use href="#i-arrow-right"/></svg></button></p>
             </div>
           </div>
 
@@ -702,6 +729,259 @@
               <p>Confirm your cost centre with your Finance Business Partner before submitting, attach a business case reference number whenever one applies, and use the submission comments box — not the position Comment field — to flag genuine urgency to approvers.</p>
             </div>
           </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ====================== CHANGE PREVIEW — Approver's-Eye View (1.) ====================== -->
+    <section class="view" x-show="$store.nav.view === 'preview'" x-cloak x-data="changePreview()" x-init="init(); window.__pwChangePreview = $data">
+      <div class="page-head">
+        <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-eye"/></svg> Before you submit</div>
+        <h1>Change Preview</h1>
+        <p class="lede">See your amendment exactly as it lands on an approver's Workflow Details page — the same Change Summary they see, with old value struck through next to new, your approval chain, and a first-draft submission comment.</p>
+      </div>
+
+      <div class="print-only-header">
+        <div class="pt-title">Position Management — Change Preview</div>
+        <div class="pt-meta">Position Wizard (unofficial reference tool) · Austin Health</div>
+      </div>
+
+      <!-- Wizard outcomes with no "old value" to diff against -->
+      <template x-if="mode === 'not-applicable'">
+        <div class="callout callout-info no-print" style="margin-bottom:26px">
+          <svg><use href="#i-info"/></svg>
+          <div>
+            <strong>Nothing to preview here</strong>
+            <p>Your last Decision Wizard recommendation — <strong x-text="wizardRec.actionLabel"></strong> — isn't an amendment to an existing position, so there's no old value to diff against. This tool is specifically for previewing a change against the position it's actually changing.</p>
+            <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="useManualInstead()">Build one manually instead <svg><use href="#i-arrow-right"/></svg></button></p>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="mode !== 'not-applicable'">
+        <div>
+          <!-- Picked up from a completed Decision Wizard session -->
+          <template x-if="mode === 'connected'">
+            <div class="callout callout-info no-print" style="margin-bottom:22px">
+              <svg><use href="#i-branch"/></svg>
+              <div>
+                <strong>Picked up from your Decision Wizard session</strong>
+                <p x-text="wizardRec.actionLabel"></p>
+                <p style="margin-top:8px"><button class="btn btn-sm btn-ghost" @click="useManualInstead()">Not this one? Build manually instead</button></p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Change Reason -->
+          <div class="card" style="padding:18px 20px; margin-bottom:20px">
+            <div class="field-label" style="margin-bottom:12px">Change Reason</div>
+            <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+              <template x-for="cr in PW.CHANGE_REASONS.filter(c => c.id !== 'create')" :key="cr.id">
+                <button class="choice-tile" style="padding:12px 14px" :class="{ 'is-selected': changeReasonId === cr.id }" @click="selectChangeReason(cr.id)">
+                  <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span>
+                  <span class="choice-tile-body">
+                    <strong x-text="cr.label"></strong>
+                    <span x-show="recommendedChangeReasonId === cr.id" style="color:var(--brand-1); font-weight:650">Recommended by your Decision Wizard session</span>
+                  </span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <template x-if="changeReasonId">
+            <div>
+              <!-- Context -->
+              <div class="card" style="padding:18px 20px; margin-bottom:20px">
+                <div class="field-label">Position title or number <span style="color:var(--text-3); font-weight:500">(optional — for your own reference)</span></div>
+                <input class="input" type="text" placeholder="e.g. Registered Nurse Grade 2, #712345" x-model="positionRef" style="margin-bottom:18px; max-width:420px">
+
+                <div class="field-label">Is the position currently occupied?</div>
+                <div class="choice-grid" style="grid-template-columns:repeat(3,1fr); max-width:600px; margin-bottom:14px">
+                  <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': occupied === 'yes' }" @click="occupied = 'yes'">
+                    <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                  </button>
+                  <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': occupied === 'no' }" @click="occupied = 'no'">
+                    <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                  </button>
+                  <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': occupied === 'future' }" @click="occupied = 'future'">
+                    <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Future-dated</strong></span>
+                  </button>
+                </div>
+                <div x-show="occupied === 'yes'" style="max-width:240px">
+                  <label class="field-label">Number of current incumbents <span style="color:var(--text-3); font-weight:500">(optional)</span></label>
+                  <input class="input" type="number" min="1" step="1" placeholder="e.g. 3" x-model="incumbentCount">
+                </div>
+
+                <template x-if="changeReasonId === 'fte'">
+                  <div style="margin-top:18px">
+                    <div class="field-label">Is the FTE increasing or decreasing?</div>
+                    <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:400px">
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': fteDirection === 'increase' }" @click="fteDirection = 'increase'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Increasing</strong></span>
+                      </button>
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': fteDirection === 'decrease' }" @click="fteDirection = 'decrease'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Decreasing</strong></span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+
+                <template x-if="bcRelevant">
+                  <div style="margin-top:18px">
+                    <div class="field-label">Do you have a Finance-approved business case ready to attach?</div>
+                    <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:400px; margin-bottom:14px">
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': businessCase === 'yes' }" @click="businessCase = 'yes'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes</strong></span>
+                      </button>
+                      <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': businessCase === 'no' }" @click="businessCase = 'no'">
+                        <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No</strong></span>
+                      </button>
+                    </div>
+                    <div x-show="businessCase === 'yes'" style="max-width:240px">
+                      <label class="field-label">Business Case Number</label>
+                      <input class="input" type="text" placeholder="e.g. 25.042" x-model="businessCaseNumber">
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Which fields are actually changing -->
+              <template x-if="changeReasonId === 'classification' || changeReasonId === 'other'">
+                <div class="card" style="padding:18px 20px; margin-bottom:20px">
+                  <div class="field-label" style="margin-bottom:12px">Which fields are actually changing? Select all that apply.</div>
+                  <div class="choice-grid" style="grid-template-columns:repeat(2,1fr)">
+                    <template x-for="f in candidateFields" :key="f.id">
+                      <button class="choice-tile" style="padding:12px 14px" :class="{ 'is-selected': selectedFieldIds.includes(f.id) }" @click="toggleField(f.id)">
+                        <span class="choice-tile-marker is-checkbox"><svg><use href="#i-check"/></svg></span>
+                        <span class="choice-tile-body">
+                          <strong style="font-size:var(--text-sm)" x-text="f.name"></strong>
+                          <span x-show="f.payScaleWarning">Won't synchronise even though the field above it does</span>
+                        </span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Old / new value capture -->
+              <template x-if="rows.length">
+                <div class="card" style="padding:4px 20px; margin-bottom:20px">
+                  <div class="field-label" style="margin:16px 0 0">Enter the values</div>
+                  <template x-for="f in rows" :key="f.id">
+                    <div class="diffcap-row">
+                      <div class="diffcap-row-label">
+                        <strong x-text="f.name"></strong>
+                        <span class="badge badge-danger" x-show="occupied === 'yes' && f.payScaleWarning">High risk</span>
+                        <span class="badge badge-success" x-show="occupied === 'yes' && f.syncs && !f.payScaleWarning">Syncs</span>
+                        <span class="badge badge-neutral" x-show="occupied === 'yes' && !f.syncs && !f.payScaleWarning">Won't sync</span>
+                      </div>
+                      <div>
+                        <label class="field-label" style="font-weight:550">Previous value</label>
+                        <input class="input" :type="inputType(f.id)" placeholder="What it is now" :value="f.old" @input="setValue(f.id, 'old', $event.target.value)">
+                      </div>
+                      <div>
+                        <label class="field-label" style="font-weight:550">New value</label>
+                        <input class="input" :type="inputType(f.id)" placeholder="What it's changing to" :value="f.new" @input="setValue(f.id, 'new', $event.target.value)">
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- High-visibility payroll risk -->
+              <template x-if="hasPayScaleRisk">
+                <div class="callout callout-danger callout-loud no-print" style="margin-bottom:24px">
+                  <svg><use href="#i-alert-triangle"/></svg>
+                  <div>
+                    <strong>High payroll risk — read before submitting</strong>
+                    <p>This position is occupied and Pay Scale Level is part of the change. Type, Area, and Group synchronise to incumbents automatically — Level does not. Incumbents could end up with a classification and pay point that no longer align. Verify every incumbent's current Pay Scale Level first.</p>
+                    <div class="action-cta">
+                      <svg><use href="#i-arrow-right"/></svg>
+                      <div><strong x-text="PW.SAFER_ALTERNATIVE.label"></strong><p x-text="PW.SAFER_ALTERNATIVE.detail"></p></div>
+                    </div>
+                    <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="$store.nav.go('sync')">Open Synchronisation Risk Checker <svg><use href="#i-arrow-right"/></svg></button></p>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Change Summary — the approver's-eye diff -->
+              <template x-if="rows.length">
+                <div class="rec-section">
+                  <h3><svg><use href="#i-eye"/></svg> Change Summary — what your approver sees</h3>
+                  <div class="card diff-card">
+                    <template x-for="r in rows" :key="r.id">
+                      <div class="diff-row">
+                        <div class="diff-row-label" x-text="r.name"></div>
+                        <div class="diff-row-values">
+                          <span class="diff-old" :class="{ 'is-empty': !r.old }" x-text="r.old || 'not entered yet'"></span>
+                          <svg class="diff-arrow"><use href="#i-arrow-right"/></svg>
+                          <span class="diff-new" :class="{ 'is-empty': !r.new }" x-text="r.new || 'not entered yet'"></span>
+                        </div>
+                        <div class="diff-row-badges" x-show="occupied === 'yes'">
+                          <span class="badge" :class="r.payScaleWarning ? 'badge-danger' : (r.syncs ? 'badge-success' : 'badge-neutral')" x-text="r.payScaleWarning ? 'High risk' : (r.syncs ? 'Syncs' : 'Won\u2019t sync')"></span>
+                        </div>
+                      </div>
+                    </template>
+                    <div class="diff-row" x-show="businessCase === 'yes'">
+                      <div class="diff-row-label">Business case</div>
+                      <div class="diff-row-values">
+                        <span class="badge badge-success">Attached</span>
+                        <span class="field-hint" style="margin:0" x-text="businessCaseNumber || 'Number not entered yet'"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Approval chain -->
+              <template x-if="chain">
+                <div class="rec-section">
+                  <h3><svg><use href="#i-flow"/></svg> Approval chain — <span x-text="chain.stops.length + ' stop' + (chain.stops.length === 1 ? '' : 's')"></span></h3>
+                  <div class="chain">
+                    <template x-for="(stop, i) in chain.stops" :key="i">
+                      <span style="display:flex;align-items:stretch">
+                        <span class="chain-stop">
+                          <span class="chain-stop-icon" x-text="i + 1"></span>
+                          <span class="chain-stop-label" x-text="stop"></span>
+                        </span>
+                        <span class="chain-arrow" x-show="i < chain.stops.length - 1"><svg><use href="#i-arrow-right"/></svg></span>
+                      </span>
+                    </template>
+                  </div>
+                  <template x-if="chain.headline">
+                    <div class="callout callout-info" style="margin-top:14px">
+                      <svg><use href="#i-info"/></svg>
+                      <div><strong x-text="chain.headline"></strong><p x-text="chain.note"></p></div>
+                    </div>
+                  </template>
+                  <p class="field-hint" x-show="!chain.headline" x-text="chain.note"></p>
+                </div>
+              </template>
+
+              <!-- Generated justification comment -->
+              <template x-if="rows.length">
+                <div class="rec-section">
+                  <h3><svg><use href="#i-clipboard"/></svg> Comment for your submission</h3>
+                  <p class="field-hint" style="margin-bottom:10px">A first draft, built from the changes above — edit it freely before pasting it into the submission comments box.</p>
+                  <textarea class="input" rows="4" :value="commentEdited ? comment : generatedComment" @input="onCommentInput($event.target.value)"></textarea>
+                  <button class="btn btn-ghost btn-sm no-print" style="margin-top:8px" x-show="commentEdited" @click="regenerateComment()"><svg><use href="#i-refresh"/></svg> Regenerate from changes above</button>
+                </div>
+              </template>
+
+              <div class="rec-actions no-print" x-show="rows.length">
+                <button class="btn btn-primary" @click="copySummary()">
+                  <svg><use href="#i-clipboard"/></svg> Copy summary
+                </button>
+                <button class="btn btn-secondary" @click="printSummary()">
+                  <svg><use href="#i-printer"/></svg> Print
+                </button>
+                <button class="btn btn-ghost" @click="resetAll()">
+                  <svg><use href="#i-refresh"/></svg> Start over
+                </button>
+                <span class="copy-feedback" x-show="copied" x-transition><svg><use href="#i-check"/></svg> Copied to clipboard</span>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
     </section>

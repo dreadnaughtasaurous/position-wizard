@@ -582,6 +582,212 @@ document.addEventListener('alpine:init', () => {
   }));
 
   /* ============================================================
+     CHANGE PREVIEW — "Approver's-Eye View" — 1.
+     ------------------------------------------------------------
+     Renders an amendment exactly as an approver sees it on
+     SuccessFactors' Workflow Details page (Guide 5): each changed
+     field as old value (struck through) next to new value, the
+     change-reason-specific approval chain beneath, and a generated
+     first-draft justification comment. Mirrors preflight()'s
+     connect/manual pattern \u2014 auto-picks up the last completed
+     Decision Wizard session when its outcome was an amendment, but
+     never assumes the actual old/new values, since the wizard only
+     ever captures which *kind* of change it is, not the values
+     themselves.
+     ============================================================ */
+  Alpine.data('changePreview', () => ({
+    mode: 'manual', // 'connected' | 'manual' | 'not-applicable'
+    wizardRec: null,
+
+    changeReasonId: null,
+    positionRef: '',
+    occupied: null,        // 'yes' | 'no' | 'future'
+    fteDirection: null,    // 'increase' | 'decrease'
+    businessCase: null,    // 'yes' | 'no'
+    businessCaseNumber: '',
+    incumbentCount: '',
+    selectedFieldIds: [],
+    values: {},            // { [fieldId]: { old: '', new: '' } }
+    comment: '',
+    commentEdited: false,
+    copied: false,
+
+    init() { this.pullWizardContext(); },
+
+    // Exposed via window.__pwChangePreview so the wizard's amend
+    // recommendation can force a fresh pull, the same way it already
+    // does for Submission Readiness and the Deactivation Checklist.
+    refresh() { this.resetAll(); this.pullWizardContext(); },
+
+    pullWizardContext() {
+      this.mode = 'manual';
+      this.wizardRec = null;
+      const saved = sessionStorage.getItem('pw-wizard-state');
+      if (!saved) return;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.step !== 'recommendation' || !parsed.answers || !Object.keys(parsed.answers).length) return;
+        const path = PW.derivePath(parsed.answers);
+        if (path !== 'amend') {
+          // Create / Transfer / Individual variation / Deactivate have
+          // no "old value" to diff against \u2014 nothing for this tool to do.
+          this.mode = 'not-applicable';
+          this.wizardRec = PW.buildRecommendation(parsed.answers);
+          return;
+        }
+        this.mode = 'connected';
+        const a = parsed.answers;
+        this.wizardRec = PW.buildRecommendation(a);
+        this.changeReasonId = a.whatChanging || 'other';
+        this.occupied = a.occupied || null;
+        this.fteDirection = a.fteDirection || null;
+        this.businessCase = a.businessCase || null;
+        if (a.syncFields && a.syncFields.length) {
+          const candidateIds = this.candidateFieldsFor(this.changeReasonId).map(f => f.id);
+          const carried = a.syncFields.filter(id => candidateIds.includes(id));
+          this.selectedFieldIds = carried.length ? carried : this.defaultSelectedIdsFor(this.changeReasonId);
+        } else {
+          this.selectedFieldIds = this.defaultSelectedIdsFor(this.changeReasonId);
+        }
+      } catch (e) { /* ignore corrupt state */ }
+    },
+
+    // "Not this one? Build manually instead" \u2014 drops the wizard link.
+    useManualInstead() {
+      this.mode = 'manual';
+      this.wizardRec = null;
+      this.resetAll();
+    },
+
+    resetAll() {
+      this.changeReasonId = null;
+      this.positionRef = '';
+      this.occupied = null;
+      this.fteDirection = null;
+      this.businessCase = null;
+      this.businessCaseNumber = '';
+      this.incumbentCount = '';
+      this.selectedFieldIds = [];
+      this.values = {};
+      this.comment = '';
+      this.commentEdited = false;
+    },
+
+    selectChangeReason(id) {
+      this.changeReasonId = id;
+      this.selectedFieldIds = this.defaultSelectedIdsFor(id);
+      this.values = {};
+      this.commentEdited = false;
+    },
+
+    // Position Title and Target FTE have their own dedicated Change
+    // Reasons, so they're fixed single-field cases here rather than
+    // picker lists \u2014 Classification and Other Attributes reuse the
+    // shared field lists from data.js so sync/payroll-risk flags can
+    // never drift from the canonical per-field data.
+    candidateFieldsFor(id) {
+      if (id === 'fte') return [{ id: 'target-fte', name: 'Target FTE', syncs: false, payScaleWarning: false }];
+      if (id === 'title') return [{ id: 'position-title', name: 'Position Title', syncs: true, payScaleWarning: false }];
+      if (id === 'classification') return PW.CLASSIFICATION_FIELDS;
+      if (id === 'other') return PW.OTHER_ATTRIBUTE_FIELDS;
+      return [];
+    },
+    defaultSelectedIdsFor(id) {
+      if (id === 'fte') return ['target-fte'];
+      if (id === 'title') return ['position-title'];
+      if (id === 'classification') return ['pay-scale-group', 'pay-scale-level'];
+      return [];
+    },
+
+    get candidateFields() { return this.candidateFieldsFor(this.changeReasonId); },
+    get isFixedField() { return this.changeReasonId === 'fte' || this.changeReasonId === 'title'; },
+    get recommendedChangeReasonId() { return (this.mode === 'connected' && this.wizardRec) ? this.wizardRec.changeReasonId : null; },
+    get reasonLabel() {
+      const d = PW.CHANGE_REASONS.find(c => c.id === this.changeReasonId);
+      return d ? d.label : '';
+    },
+
+    toggleField(id) {
+      if (this.isFixedField) return;
+      const i = this.selectedFieldIds.indexOf(id);
+      if (i === -1) this.selectedFieldIds.push(id);
+      else { this.selectedFieldIds.splice(i, 1); delete this.values[id]; }
+    },
+
+    // Plain text for everything except Target FTE \u2014 SuccessFactors
+    // values like cost centres and parent positions are free text in
+    // practice, so a single numeric special-case covers the one field
+    // where a number keypad genuinely helps.
+    inputType(id) { return id === 'target-fte' ? 'number' : 'text'; },
+
+    getValue(id, which) { return (this.values[id] && this.values[id][which]) || ''; },
+    setValue(id, which, val) {
+      if (!this.values[id]) this.values[id] = { old: '', new: '' };
+      this.values[id][which] = val;
+    },
+
+    get rows() {
+      return this.selectedFieldIds
+        .map(id => this.candidateFields.find(f => f.id === id))
+        .filter(Boolean)
+        .map(f => ({
+          id: f.id, name: f.name, syncs: f.syncs, payScaleWarning: f.payScaleWarning,
+          old: this.getValue(f.id, 'old'), new: this.getValue(f.id, 'new'),
+        }));
+    },
+
+    get bcRelevant() { return this.changeReasonId === 'fte' && this.fteDirection === 'increase'; },
+    get hasPayScaleRisk() { return this.occupied === 'yes' && this.rows.some(r => r.payScaleWarning); },
+    get chain() { return this.changeReasonId ? PW.getApprovalChain(this.changeReasonId, this.fteDirection, this.businessCase) : null; },
+
+    get generatedComment() {
+      return PW.buildJustificationComment(this.changeReasonId, this.rows, {
+        positionRef: this.positionRef, fteDirection: this.fteDirection,
+        businessCase: this.businessCase, businessCaseNumber: this.businessCaseNumber,
+        occupied: this.occupied, incumbentCount: this.incumbentCount,
+      });
+    },
+    onCommentInput(v) { this.comment = v; this.commentEdited = true; },
+    regenerateComment() { this.commentEdited = false; },
+
+    copySummary() {
+      const lines = [];
+      lines.push('CHANGE PREVIEW \u2014 APPROVER\u2019S-EYE VIEW');
+      lines.push('Generated by the Position Wizard (unofficial reference tool) \u2014 ' + new Date().toLocaleDateString('en-AU'));
+      lines.push('');
+      if (this.positionRef) lines.push('Position: ' + this.positionRef);
+      lines.push('Change Reason: ' + this.reasonLabel);
+      lines.push('');
+      lines.push('CHANGE SUMMARY:');
+      this.rows.forEach(r => {
+        const syncTag = this.occupied === 'yes' ? (r.payScaleWarning ? '  [HIGH RISK \u2014 does not sync]' : r.syncs ? '  [syncs to incumbents]' : '  [does not sync \u2014 update individually]') : '';
+        lines.push(`  ${r.name}: ${r.old || '\u2014'} \u2192 ${r.new || '\u2014'}${syncTag}`);
+      });
+      if (this.businessCase === 'yes') {
+        lines.push('');
+        lines.push('Business case attached' + (this.businessCaseNumber ? ': ' + this.businessCaseNumber : ' \u2014 number not entered yet'));
+      }
+      if (this.chain) {
+        lines.push('');
+        lines.push(`APPROVAL CHAIN (${this.chain.stops.length} ${this.chain.stops.length === 1 ? 'step' : 'steps'}):`);
+        this.chain.stops.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));
+        if (this.chain.headline) lines.push('  ' + this.chain.headline);
+        lines.push('  ' + this.chain.note);
+      }
+      lines.push('');
+      lines.push('DRAFT COMMENT FOR SUBMISSION:');
+      lines.push('  ' + (this.commentEdited ? this.comment : this.generatedComment));
+      lines.push('');
+      lines.push('This is an unofficial reference tool \u2014 confirm anything unusual with HR Services before submitting: ' + PW.HELP_URL);
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 2200);
+      });
+    },
+    printSummary() { window.print(); },
+  }));
+
+  /* ============================================================
      DEACTIVATION CHECKLIST — 2.7
      ------------------------------------------------------------
      Guide 7's three prerequisites for "Making Positions Inactive",

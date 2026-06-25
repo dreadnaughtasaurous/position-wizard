@@ -230,3 +230,59 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── 1. — Change Preview: "Change Summary" diff card ────────────────
+   Read-only old-struck-through → new, mirroring exactly what Guide 5
+   documents an approver sees on the Workflow Details page. ── */
+.diff-card { padding: 6px 18px; }
+.diff-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--divider);
+  flex-wrap: wrap;
+}
+.diff-row:last-child { border-bottom: none; }
+.diff-row-label {
+  flex: 0 0 180px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--text-1);
+}
+.diff-row-values {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.diff-old, .diff-new { font-size: var(--text-base); word-break: break-word; max-width: 100%; }
+.diff-old { color: var(--text-3); text-decoration: line-through; }
+.diff-old.is-empty { text-decoration: none; font-style: italic; opacity: 0.75; }
+.diff-new { color: var(--text-1); font-weight: 650; }
+.diff-new.is-empty { font-style: italic; font-weight: 500; color: var(--text-3); }
+.diff-arrow { width: 14px; height: 14px; color: var(--text-3); flex-shrink: 0; }
+.diff-row-badges { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
+@media (max-width: 620px) {
+  .diff-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .diff-row-badges { margin-left: 0; }
+}
+
+/* ── 1. — Change Preview: old/new value capture grid ── */
+.diffcap-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.diffcap-row:last-child { border-bottom: none; }
+.diffcap-row-label { padding-top: 9px; display: flex; flex-direction: column; gap: 6px; }
+.diffcap-row-label strong { font-size: var(--text-sm); color: var(--text-1); }
+.diffcap-row-label .badge { align-self: flex-start; }
+@media (max-width: 680px) {
+  .diffcap-row { grid-template-columns: 1fr; }
+  .diffcap-row-label { padding-top: 0; }
+}

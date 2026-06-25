@@ -337,6 +337,25 @@ PW.AMENDABLE_SYNC_FIELD_IDS = [
 ];
 PW.AMENDABLE_SYNC_FIELDS = PW.SYNC_RELEVANT_FIELDS.filter(f => PW.AMENDABLE_SYNC_FIELD_IDS.includes(f.id));
 
+/* ── 1. — Change Preview field pickers ─────────────────────────────
+   Candidate fields offered when a manager builds a Change Preview for
+   "Change Position Classification" or "Change Other Position
+   Attributes" — the two reasons where more than one field could be
+   changing at once. Position Title and Target FTE have their own
+   dedicated Change Reasons, so the tool treats them as fixed
+   single-field cases rather than picker lists. Both reuse
+   PW.SYNC_RELEVANT_FIELDS so the sync/payroll-risk flags can never
+   drift from the canonical per-field data above. ── */
+PW.CLASSIFICATION_FIELD_IDS = ['pay-scale-type', 'pay-scale-area', 'pay-scale-group', 'pay-scale-level'];
+PW.CLASSIFICATION_FIELDS = PW.SYNC_RELEVANT_FIELDS.filter(f => PW.CLASSIFICATION_FIELD_IDS.includes(f.id));
+
+PW.OTHER_ATTRIBUTE_FIELD_IDS = [
+  'parent-position', 'cost-centre', 'directorate', 'division', 'department', 'sub-department',
+  'ph-calendar', 'job-role', 'kronos-job', 'start-date',
+  'ahpra', 'wwcc', 'immunisation', 'security-licencing', 'ndis-screening',
+];
+PW.OTHER_ATTRIBUTE_FIELDS = PW.SYNC_RELEVANT_FIELDS.filter(f => PW.OTHER_ATTRIBUTE_FIELD_IDS.includes(f.id));
+
 /* ── Change Reasons and what they unlock ── */
 PW.CHANGE_REASONS = [
   {
