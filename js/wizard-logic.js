@@ -387,14 +387,7 @@
     }
 
     if (path === 'deactivate') {
-      return [
-        { title: 'Open the position', body: 'Find it via the Position Org Chart.' },
-        { title: 'Show Details \u2192 Edit', body: 'Enter the date this should take effect as the Effective Date.' },
-        { title: 'Set Change Reason to Change Other Position Attributes', body: null },
-        { title: 'Change Status from Active to Inactive', body: null },
-        { title: 'Add a comment explaining why', body: 'Required context for HR Services and your Finance Business Partner \u2014 remember this comment is visible to anyone viewing the position.' },
-        { title: 'Submit for approval', body: 'Follows the standard 3-stop \u201cOther Attributes\u201d chain \u2014 manager, HR Services, Finance Business Partner.' },
-      ];
+      return PW.DEACTIVATE_STEPS;
     }
 
     // amend
@@ -566,6 +559,19 @@
   const BUSINESS_CASE_NUMBER_RE = /^\d{2}\.\d{3}$/;
   function isValidBusinessCaseNumber(v) { return BUSINESS_CASE_NUMBER_RE.test(String(v || '').trim()); }
 
+  /* ── 2.7 — Deactivation Checklist comment check. "Too generic" means
+     either under ~15 characters (too short to explain anything) or an
+     exact match against PW.GENERIC_DEACTIVATION_COMMENTS once trimmed,
+     lower-cased, and stripped of trailing punctuation — a label like
+     "deactivating" satisfies Guide 7's letter (non-empty) but not its
+     intent (an actual explanation for HR Services / Finance). ── */
+  function isGenericDeactivationComment(text) {
+    const v = String(text || '').trim().toLowerCase().replace(/[.!]+$/, '');
+    if (!v) return false; // emptiness is its own, separate check
+    if (v.length < 15) return true;
+    return PW.GENERIC_DEACTIVATION_COMMENTS.includes(v);
+  }
+
   /* ── 2.3 — FTE \u2194 Hours conversion. Hours = FTE \u00d7 standard week
      (PW.STANDARD_FTE_HOURS unless a caller passes its own, e.g. an
      EBA-specific override from the calculator UI). Returns plain
@@ -651,6 +657,7 @@
   PW.derivePath = derivePath;
   PW.preflightRelevance = preflightRelevance;
   PW.isValidBusinessCaseNumber = isValidBusinessCaseNumber;
+  PW.isGenericDeactivationComment = isGenericDeactivationComment;
   PW.fteToHours = fteToHours;
   PW.hoursToFte = hoursToFte;
 })();

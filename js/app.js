@@ -567,6 +567,147 @@ document.addEventListener('alpine:init', () => {
   }));
 
   /* ============================================================
+     DEACTIVATION CHECKLIST — 2.7
+     ------------------------------------------------------------
+     Guide 7's three prerequisites for "Making Positions Inactive",
+     each checked individually rather than as the wizard's single
+     combined gate question — useful on its own for a manager who
+     already knows they want to deactivate and lands here directly,
+     and as a final double-check before actually submitting. Mirrors
+     the preflight() component's connect/manual pattern, just for
+     three checks instead of five.
+     ============================================================ */
+  Alpine.data('deactivationChecklist', () => ({
+    mode: 'manual', // 'connected' | 'manual'
+    wizardNote: null, // FYI text when the wizard previously found this blocked
+
+    vacant: null,      // 'yes' | 'no'
+    futureDated: null, // 'yes' | 'no' — "yes" means a future-dated change exists (bad)
+    comment: '',
+
+    copied: false,
+
+    init() {
+      this.pullWizardContext();
+    },
+
+    // Exposed via window.__pwDeactivation so the wizard's deactivate
+    // recommendation can force a fresh pull, the same way the wizard
+    // links across to Submission Readiness.
+    refresh() {
+      this.resetAnswers();
+      this.pullWizardContext();
+    },
+
+    pullWizardContext() {
+      this.mode = 'manual';
+      this.wizardNote = null;
+      const saved = sessionStorage.getItem('pw-wizard-state');
+      if (!saved) return;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.step !== 'recommendation' || !parsed.answers) return;
+        if (parsed.answers.deactivateReady === 'yes') {
+          // Wizard already confirmed both gating conditions together —
+          // carry that across so the manager only needs to draft the
+          // comment here, rather than re-answering what's already settled.
+          this.mode = 'connected';
+          this.vacant = 'yes';
+          this.futureDated = 'no';
+        } else if (parsed.answers.deactivateReady === 'no') {
+          this.wizardNote = 'Your last Decision Wizard session found this position wasn\u2019t ready to deactivate yet. If that\u2019s changed since, answer the two checks below fresh.';
+        }
+      } catch (e) { /* ignore corrupt state */ }
+    },
+
+    resetAnswers() {
+      this.vacant = null;
+      this.futureDated = null;
+      this.comment = '';
+    },
+
+    // "Not this one? Check manually instead" — drops the wizard link.
+    useManualInstead() {
+      this.mode = 'manual';
+      this.wizardNote = null;
+      this.resetAnswers();
+    },
+
+    // ---- The three prerequisites ----
+    get vacantCheck() {
+      if (this.vacant === null) return { status: 'pending', text: 'Confirm there is currently no incumbent in this position.' };
+      if (this.vacant === 'yes') return { status: 'pass', text: 'No current incumbent — this condition is met.' };
+      return { status: 'fail', text: 'SuccessFactors won\u2019t deactivate an occupied position. Resolve the incumbent first — the Decision Wizard\u2019s transfer flow can help if they\u2019re moving elsewhere.' };
+    },
+
+    get futureDatedCheck() {
+      if (this.futureDated === null) return { status: 'pending', text: 'Confirm whether a future-dated Job Information change is scheduled to move someone into this position.' };
+      if (this.futureDated === 'no') return { status: 'pass', text: 'Nothing scheduled to move someone in — this condition is met.' };
+      return { status: 'fail', text: 'A future-dated change moving someone in blocks deactivation, even while the position still shows vacant today. Cancel or resolve that change first.' };
+    },
+
+    get commentCheck() {
+      const v = (this.comment || '').trim();
+      if (!v) return { status: 'pending', text: 'Draft the comment explaining why you\u2019re deactivating this position — required, and visible to anyone viewing the position.' };
+      if (PW.isGenericDeactivationComment(v)) return { status: 'warn', text: 'This reads as a placeholder rather than an explanation. HR Services and your Finance Business Partner see this comment — say what\u2019s actually happening (e.g. which area the freed-up FTE is going to).' };
+      return { status: 'pass', text: 'Explains the reason — ready to paste into the Comment field.' };
+    },
+
+    get checks() {
+      return [
+        { key: 'vacant', title: 'Position is genuinely vacant', status: this.vacantCheck.status, text: this.vacantCheck.text },
+        { key: 'future', title: 'No future-dated change moving someone in', status: this.futureDatedCheck.status, text: this.futureDatedCheck.text },
+        { key: 'comment', title: 'Reallocation comment drafted', status: this.commentCheck.status, text: this.commentCheck.text },
+      ];
+    },
+
+    get summary() {
+      const failing = this.checks.filter(c => c.status === 'fail');
+      const pending = this.checks.filter(c => c.status === 'pending');
+      const warning = this.checks.filter(c => c.status === 'warn');
+      if (failing.length) return { tone: 'danger', text: `Not ready — ${failing.length} prerequisite${failing.length === 1 ? '' : 's'} not yet met. SuccessFactors will reject the deactivation until ${failing.length === 1 ? 'it\u2019s' : 'they\u2019re'} resolved.` };
+      if (pending.length) return { tone: 'info', text: `${pending.length} check${pending.length === 1 ? '' : 's'} still need${pending.length === 1 ? 's' : ''} an answer.` };
+      if (warning.length) return { tone: 'warning', text: 'Both SuccessFactors prerequisites are met, but your comment could be more specific before you submit.' };
+      return { tone: 'success', text: 'Ready to deactivate — both SuccessFactors prerequisites are met and your comment is drafted.' };
+    },
+
+    badgeClass(status) {
+      return { pass: 'badge-success', fail: 'badge-danger', warn: 'badge-warning', pending: 'badge-brand' }[status] || 'badge-neutral';
+    },
+    badgeLabel(status) {
+      return { pass: 'Pass', fail: 'Not met', warn: 'Check again', pending: 'Incomplete' }[status] || status;
+    },
+
+    copySummary() {
+      const lines = [];
+      lines.push('DEACTIVATION CHECKLIST');
+      lines.push('Generated by the Position Wizard (unofficial reference tool) — ' + new Date().toLocaleDateString('en-AU'));
+      lines.push('');
+      lines.push('Overall: ' + this.summary.text);
+      lines.push('');
+      this.checks.forEach(c => {
+        const tag = { pass: 'PASS', fail: 'NOT MET', warn: 'CHECK AGAIN', pending: 'INCOMPLETE' }[c.status] || c.status.toUpperCase();
+        lines.push(`[${tag}] ${c.title}`);
+        lines.push('  ' + c.text);
+      });
+      if ((this.comment || '').trim()) {
+        lines.push('');
+        lines.push('DRAFT COMMENT:');
+        lines.push('  ' + this.comment.trim());
+      }
+      lines.push('');
+      lines.push('STEPS IN SUCCESSFACTORS:');
+      PW.DEACTIVATE_STEPS.forEach((s, i) => lines.push(`  ${i + 1}. ${s.title}` + (s.body ? ` — ${s.body}` : '')));
+      lines.push('');
+      lines.push('This is an unofficial reference tool — confirm anything unusual with HR Services before submitting: ' + PW.HELP_URL);
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 2200);
+      });
+    },
+  }));
+
+  /* ============================================================
      FTE & HOURS CALCULATOR — 2.3
      ------------------------------------------------------------
      Two-way arithmetic for the one relationship that sits behind

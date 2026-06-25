@@ -427,6 +427,30 @@ PW.VACANT_CHECK = {
   ],
 };
 
+/* ── 2.7 — Deactivation Checklist: Guide 7's "Making Positions
+      Inactive" procedure, kept as one shared array so the wizard's own
+      deactivate recommendation steps and the standalone Deactivation
+      Checklist tool can never drift apart. ── */
+PW.DEACTIVATE_STEPS = [
+  { title: 'Open the position', body: 'Find it via the Position Org Chart.' },
+  { title: 'Show Details \u2192 Edit', body: 'Enter the date this should take effect as the Effective Date.' },
+  { title: 'Set Change Reason to Change Other Position Attributes', body: null },
+  { title: 'Change Status from Active to Inactive', body: null },
+  { title: 'Add a comment explaining why', body: 'Required context for HR Services and your Finance Business Partner \u2014 remember this comment is visible to anyone viewing the position.' },
+  { title: 'Submit for approval', body: 'Follows the standard 3-stop \u201cOther Attributes\u201d chain \u2014 manager, HR Services, Finance Business Partner.' },
+];
+
+/* Comments that are non-empty but don't actually explain anything —
+   Guide 7 requires "a comment explaining why", not a label that just
+   restates the action. Matched case-insensitively against the trimmed,
+   punctuation-stripped comment. Used by the Deactivation Checklist's
+   comment check (wizard-logic.js: isGenericDeactivationComment). ── */
+PW.GENERIC_DEACTIVATION_COMMENTS = [
+  'deactivating', 'deactivate', 'deactivated', 'deactivating position',
+  'inactive', 'inactivating', 'making inactive', 'n/a', 'na', 'none',
+  'closing position', 'closed', 'not needed', 'no longer needed', 'tbc', 'see above',
+];
+
 /* ── 1.5 — Canonical "safer alternative" action, shared by the
       Synchronisation Risk Checker and the Decision Wizard's sync
       warning so the recommended action never drifts out of sync

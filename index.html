@@ -106,6 +106,9 @@
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'preflight' }" @click="$store.nav.go('preflight')">
         <svg><use href="#i-check-circle"/></svg> Submission Readiness
       </button>
+      <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'deactivation' }" @click="$store.nav.go('deactivation')">
+        <svg><use href="#i-power"/></svg> Deactivation Checklist
+      </button>
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'fte' }" @click="$store.nav.go('fte')">
         <svg><use href="#i-calculator"/></svg> FTE &amp; Hours Calculator
       </button>
@@ -185,6 +188,13 @@
           <h3>Submission Readiness Check</h3>
           <p>About to submit in SuccessFactors? Run your Change Reason, FTE, Pay Scale, business case, and Parent Position against the gotchas that trigger a Send Back — before you go in.</p>
           <span class="tool-card-cta">Run the check <svg><use href="#i-arrow-right"/></svg></span>
+        </button>
+
+        <button class="tool-card" @click="$store.nav.go('deactivation')">
+          <div class="tool-card-icon" style="background:var(--success-bg); color:var(--success)"><svg><use href="#i-power"/></svg></div>
+          <h3>Deactivation Checklist</h3>
+          <p>Retiring a position? SuccessFactors will only deactivate one that's genuinely vacant, has nothing future-dated moving someone in, and carries a real reallocation comment. Check all three before you submit.</p>
+          <span class="tool-card-cta">Run the checklist <svg><use href="#i-arrow-right"/></svg></span>
         </button>
 
         <button class="tool-card" @click="$store.nav.go('fte')">
@@ -413,6 +423,23 @@
                 <div><strong>Run the Submission Readiness Check</strong><p>Cross-checks Change Reason, Multiple Holders vs FTE, business case format, Pay Scale, and Parent Position against this recommendation before you submit.</p></div>
               </div>
               <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="window.__pwPreflight && window.__pwPreflight.refresh(); $store.nav.go('preflight')">Open Submission Readiness Check <svg><use href="#i-arrow-right"/></svg></button></p>
+            </div>
+          </div>
+
+          <!-- 2.7 — hand this recommendation to the Deactivation Checklist.
+               Guide 7's vacant / no-future-dated / comment prerequisites
+               are deactivate-specific, so they sit in their own tool
+               rather than the five generic Submission Readiness gotchas
+               above, which barely apply to this path. -->
+          <div class="callout callout-info no-print" x-show="recommendation.path === 'deactivate'" style="margin-bottom:26px">
+            <svg><use href="#i-power"/></svg>
+            <div>
+              <strong>Confirm you can actually deactivate it yet</strong>
+              <div class="action-cta">
+                <svg><use href="#i-arrow-right"/></svg>
+                <div><strong>Run the Deactivation Checklist</strong><p>Checks the position is genuinely vacant, that nothing future-dated is moving someone into it, and that your reallocation comment actually explains why — the three things SuccessFactors enforces before it will let this through.</p></div>
+              </div>
+              <p style="margin-top:8px"><button class="btn btn-sm btn-secondary" @click="window.__pwDeactivation && window.__pwDeactivation.refresh(); $store.nav.go('deactivation')">Open Deactivation Checklist <svg><use href="#i-arrow-right"/></svg></button></p>
             </div>
           </div>
 
@@ -863,6 +890,114 @@
           </div>
         </div>
       </template>
+    </section>
+
+    <!-- ====================== DEACTIVATION CHECKLIST (2.7) ====================== -->
+    <section class="view" x-show="$store.nav.view === 'deactivation'" x-cloak x-data="deactivationChecklist()" x-init="init(); window.__pwDeactivation = $data">
+      <div class="page-head">
+        <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-power"/></svg> Before you submit</div>
+        <h1>Deactivation Checklist</h1>
+        <p class="lede">Guide 7 is specific: a position can only be set to Inactive while it's genuinely vacant, with nothing future-dated scheduled to move someone into it — plus a comment explaining why, since that's what actually frees the FTE up for reallocation.</p>
+      </div>
+
+      <template x-if="wizardNote">
+        <div class="callout callout-info" style="margin-bottom:22px">
+          <svg><use href="#i-info"/></svg>
+          <div><p x-text="wizardNote"></p></div>
+        </div>
+      </template>
+
+      <template x-if="mode === 'connected'">
+        <div class="callout callout-info" style="margin-bottom:22px">
+          <svg><use href="#i-branch"/></svg>
+          <div>
+            <strong>Picked up from your Decision Wizard session</strong>
+            <p>Already confirmed vacant, with nothing scheduled to move someone in — just draft the comment below.</p>
+            <p style="margin-top:8px"><button class="btn btn-sm btn-ghost" @click="useManualInstead()">Not this one? Check manually instead</button></p>
+          </div>
+        </div>
+      </template>
+
+      <!-- Overall readiness summary -->
+      <div class="callout" :class="{
+          'callout-danger callout-loud': summary.tone === 'danger',
+          'callout-warning': summary.tone === 'warning',
+          'callout-success': summary.tone === 'success',
+          'callout-info': summary.tone === 'info',
+        }" style="margin-bottom:26px">
+        <svg><use :href="summary.tone === 'danger' ? '#i-alert-triangle' : summary.tone === 'warning' ? '#i-alert-circle' : summary.tone === 'success' ? '#i-check-circle' : '#i-info'"/></svg>
+        <div>
+          <strong x-text="summary.tone === 'danger' ? 'Not ready yet' : summary.tone === 'warning' ? 'Almost there' : summary.tone === 'success' ? 'Ready to deactivate' : 'Get started'"></strong>
+          <p x-text="summary.text"></p>
+        </div>
+      </div>
+
+      <!-- Check 1 — Vacant -->
+      <div class="card preflight-check" :class="'tone-' + vacantCheck.status" style="margin-bottom:16px">
+        <div class="preflight-check-head">
+          <strong>1. Position is genuinely vacant</strong>
+          <span class="badge" :class="badgeClass(vacantCheck.status)" x-text="badgeLabel(vacantCheck.status)"></span>
+        </div>
+        <p class="field-hint" style="margin:6px 0 14px" x-text="vacantCheck.text"></p>
+        <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:420px">
+          <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': vacant === 'yes' }" @click="vacant = 'yes'">
+            <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes, vacant</strong></span>
+          </button>
+          <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': vacant === 'no' }" @click="vacant = 'no'">
+            <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No, occupied</strong></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Check 2 — No future-dated variation -->
+      <div class="card preflight-check" :class="'tone-' + futureDatedCheck.status" style="margin-bottom:16px">
+        <div class="preflight-check-head">
+          <strong>2. No future-dated change moving someone in</strong>
+          <span class="badge" :class="badgeClass(futureDatedCheck.status)" x-text="badgeLabel(futureDatedCheck.status)"></span>
+        </div>
+        <p class="field-hint" style="margin:6px 0 14px" x-text="futureDatedCheck.text"></p>
+        <div class="choice-grid" style="grid-template-columns:repeat(2,1fr); max-width:420px">
+          <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': futureDated === 'no' }" @click="futureDated = 'no'">
+            <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>No, nothing scheduled</strong></span>
+          </button>
+          <button class="choice-tile" style="padding:10px 14px" :class="{ 'is-selected': futureDated === 'yes' }" @click="futureDated = 'yes'">
+            <span class="choice-tile-marker"><svg><use href="#i-check"/></svg></span><span class="choice-tile-body"><strong>Yes, something’s scheduled</strong></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Check 3 — Reallocation comment -->
+      <div class="card preflight-check" :class="'tone-' + commentCheck.status" style="margin-bottom:16px">
+        <div class="preflight-check-head">
+          <strong>3. Reallocation comment drafted</strong>
+          <span class="badge" :class="badgeClass(commentCheck.status)" x-text="badgeLabel(commentCheck.status)"></span>
+        </div>
+        <p class="field-hint" style="margin:6px 0 14px" x-text="commentCheck.text"></p>
+        <label class="field-label">Comment to paste into the position's Comment field</label>
+        <textarea class="input" rows="3" style="margin-top:6px; max-width:520px; resize:vertical" placeholder="e.g. Position deactivated — 1.0 FTE reallocated to the new Cardiology Outpatients position (PN 712345)." x-model="comment"></textarea>
+      </div>
+
+      <div class="rec-section" style="margin-top:30px">
+        <h3><svg><use href="#i-arrow-right"/></svg> Steps in SuccessFactors</h3>
+        <div class="steps-list">
+          <template x-for="(s, i) in PW.DEACTIVATE_STEPS" :key="i">
+            <div class="step-item">
+              <span class="step-item-num"></span>
+              <div class="step-item-body"><strong x-text="s.title"></strong><p x-show="s.body" x-text="s.body"></p></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div class="rec-actions no-print">
+        <button class="btn btn-primary" @click="copySummary()">
+          <svg><use href="#i-clipboard"/></svg> Copy summary
+        </button>
+        <button class="btn btn-ghost" @click="resetAnswers()">
+          <svg><use href="#i-refresh"/></svg> Reset checks
+        </button>
+        <span class="copy-feedback" x-show="copied" x-transition><svg><use href="#i-check"/></svg> Copied to clipboard</span>
+      </div>
     </section>
 
     <!-- ====================== FTE & HOURS CALCULATOR (2.3) ====================== -->
