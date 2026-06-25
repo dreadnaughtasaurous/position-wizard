@@ -53,6 +53,8 @@
 <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></symbol>
 <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
 <symbol id="i-calculator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 6.5h8"/><path d="M8 11.2h.01M12 11.2h.01M16 11.2h.01M8 14.8h.01M12 14.8h.01M16 14.8h.01M8 18.4h.01M12 18.4h.01"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
 </defs>
 </svg>
 
@@ -111,6 +113,9 @@
       </button>
       <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'fte' }" @click="$store.nav.go('fte')">
         <svg><use href="#i-calculator"/></svg> FTE &amp; Hours Calculator
+      </button>
+      <button class="sidebar-link" :class="{ 'is-active': $store.nav.view === 'lifecycle' }" @click="$store.nav.go('lifecycle')">
+        <svg><use href="#i-refresh"/></svg> Lifecycle Map
       </button>
     </nav>
 
@@ -202,6 +207,13 @@
           <h3>FTE &amp; Hours Calculator</h3>
           <p>Convert Target FTE to Hours Per Week and back, instantly — no more arithmetic on the most consequential field in the record. Flags Multiple Holders Allowed the moment FTE goes above 1.0.</p>
           <span class="tool-card-cta">Open the calculator <svg><use href="#i-arrow-right"/></svg></span>
+        </button>
+
+        <button class="tool-card" @click="$store.nav.go('lifecycle')">
+          <div class="tool-card-icon" style="background:var(--info-bg); color:var(--info)"><svg><use href="#i-refresh"/></svg></div>
+          <h3>Lifecycle Map</h3>
+          <p>See the whole journey a position takes — submit, approve, activate, recruit, amend, deactivate — as one clickable map. Click any stage for what happens there and the tool that helps.</p>
+          <span class="tool-card-cta">Open the map <svg><use href="#i-arrow-right"/></svg></span>
         </button>
       </div>
     </section>
@@ -460,7 +472,7 @@
     </section>
 
     <!-- ====================== FIELD REFERENCE ====================== -->
-    <section class="view view-wide" x-show="$store.nav.view === 'fields'" x-cloak x-data="fieldRef()">
+    <section class="view view-wide" x-show="$store.nav.view === 'fields'" x-cloak x-data="fieldRef()" x-init="window.__pwFieldRef = $data">
       <div class="page-head">
         <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-book"/></svg> Reference</div>
         <h1>Field Reference Guide</h1>
@@ -482,7 +494,7 @@
 
       <div class="field-grid">
         <template x-for="f in results" :key="f.id">
-          <div class="field-row" :class="{ 'is-open': openId === f.id }" @click="toggle(f.id)">
+          <div class="field-row" :id="'field-' + f.id" :class="{ 'is-open': openId === f.id }" @click="toggle(f.id)">
             <div class="field-row-head">
               <div class="field-row-title">
                 <strong x-text="`${f.n}. ${f.name}`"></strong>
@@ -1064,6 +1076,87 @@
       <p style="margin-top:24px">
         <button class="btn btn-sm btn-secondary" @click="$store.nav.go('fields')">Open Field Reference Guide <svg><use href="#i-arrow-right"/></svg></button>
       </p>
+    </section>
+
+    <!-- ====================== VISUAL POSITION LIFECYCLE MAP (2.6) ====================== -->
+    <section class="view" x-show="$store.nav.view === 'lifecycle'" x-cloak x-data="lifecycleMap()" x-effect="$store.nav.view === 'lifecycle' && onEnter()">
+      <div class="page-head">
+        <div class="page-eyebrow"><svg style="width:13px;height:13px"><use href="#i-refresh"/></svg> Orientation</div>
+        <h1>Position Lifecycle Map</h1>
+        <p class="lede">Every position moves through the same six stages, from submission through to (eventually) deactivation. Click any stage below to see what happens there and which tool helps.</p>
+      </div>
+
+      <template x-if="hereStageId">
+        <div class="callout callout-info" style="margin-bottom:24px">
+          <svg><use href="#i-info"/></svg>
+          <div>
+            <strong x-text="'You are here: ' + stageLabel(hereStageId)"></strong>
+            <p>Based on the tool you were last using. Click any other stage below to explore it — this won't change anything you've entered.</p>
+          </div>
+        </div>
+      </template>
+
+      <div class="chain lifecycle-chain">
+        <template x-for="(stage, i) in stages" :key="stage.id">
+          <span style="display:flex;align-items:stretch">
+            <button type="button" class="chain-stop lifecycle-node" :class="{ 'is-selected': selected === stage.id }" @click="select(stage.id)">
+              <span class="chain-stop-icon lifecycle-node-icon">
+                <svg><use :href="stage.icon"/></svg>
+                <span class="lifecycle-here-dot" x-show="hereStageId === stage.id" title="You are here"></span>
+              </span>
+              <span class="chain-stop-label" x-text="stage.label"></span>
+            </button>
+            <span class="chain-arrow" x-show="i < stages.length - 1"><svg><use href="#i-arrow-right"/></svg></span>
+          </span>
+        </template>
+      </div>
+      <p class="lifecycle-loop-note">
+        <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"><use href="#i-refresh"/></svg>
+        Deactivating a position frees FTE that often funds a brand-new one elsewhere — the cycle returns to <strong>Submit</strong>.
+      </p>
+
+      <template x-if="activeStage">
+        <div class="card lifecycle-detail">
+          <div class="lifecycle-detail-head">
+            <span class="lifecycle-detail-num" x-text="activeStage.n"></span>
+            <div>
+              <div class="page-eyebrow" style="margin-bottom:2px" x-text="activeStage.tag"></div>
+              <h2 style="margin:0" x-text="activeStage.label"></h2>
+            </div>
+            <span class="badge badge-info" x-show="hereStageId === activeStage.id">You are here</span>
+          </div>
+
+          <p style="font-size:var(--text-lg); color:var(--text-2); margin:14px 0 18px" x-text="activeStage.summary"></p>
+
+          <ul class="lifecycle-detail-list">
+            <template x-for="(d, i) in activeStage.details" :key="i"><li x-text="d"></li></template>
+          </ul>
+
+          <template x-if="activeStage.loopNote">
+            <p class="field-hint" style="margin-top:14px; display:flex; align-items:flex-start; gap:6px;">
+              <svg style="width:13px;height:13px;flex-shrink:0;margin-top:3px"><use href="#i-refresh"/></svg>
+              <span x-text="activeStage.loopNote"></span>
+            </p>
+          </template>
+
+          <template x-if="activeStage.tools && activeStage.tools.length">
+            <div class="lifecycle-tools">
+              <span class="field-label" style="margin:0">Tools for this stage</span>
+              <div class="lifecycle-tools-row">
+                <template x-for="tool in activeStage.tools" :key="tool.view + (tool.field || '')">
+                  <button class="btn btn-sm btn-secondary" @click="openTool(tool)">
+                    <svg><use :href="tool.icon"/></svg> <span x-text="tool.label"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <p class="field-hint" x-show="!(activeStage.tools && activeStage.tools.length)" style="margin-top:16px">
+            This step happens automatically in SuccessFactors once approved — there's nothing to action in this tool.
+          </p>
+        </div>
+      </template>
     </section>
 
   </main>

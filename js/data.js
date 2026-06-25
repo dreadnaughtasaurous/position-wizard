@@ -520,6 +520,99 @@ PW.SCENARIOS = [
       EBA that genuinely differs, without this default ever changing. ── */
 PW.STANDARD_FTE_HOURS = 38;
 
+/* ── 2.6 — Visual Position Lifecycle Map: Guide 7's full cycle,
+      structured so the same six stages drive both the clickable
+      stage chain and its detail panel. Each stage lists the in-app
+      tool(s) that actually help at that point \u2014 left empty where
+      Guide 7 describes something SuccessFactors does automatically,
+      with no manager action to take. ── */
+PW.LIFECYCLE_STAGES = [
+  {
+    id: 'submit', n: 1, label: 'Submit', icon: '#i-clipboard', tag: 'Stage 1 of 6',
+    summary: 'You complete the position form, click Save then Submit, and the request enters Austin Health\u2019s Delegations of Authority approval workflow.',
+    details: [
+      'Work out first whether this is a Create, Amend, Transfer, Individual variation, or Deactivate \u2014 the Decision Wizard gets you there in a few questions.',
+      'Run the Submission Readiness Check immediately before you click Submit \u2014 it catches the specific gotchas that trigger a Send Back.',
+    ],
+    tools: [
+      { view: 'wizard', label: 'Decide what to submit', icon: '#i-branch' },
+      { view: 'preflight', label: 'Run the readiness check', icon: '#i-check-circle' },
+    ],
+  },
+  {
+    id: 'approve', n: 2, label: 'Approve', icon: '#i-flow', tag: 'Stage 2 of 6',
+    summary: 'Your request moves through a sequence of approvers set by Austin Health\u2019s Delegations of Authority Policy \u2014 how many depends on whether a business case is attached.',
+    details: [
+      'Without a business case: 1-up / Cost Centre Manager (if required) \u2192 HR Services \u2192 Senior Finance Business Partner \u2192 Directorate Chief \u2192 CEO.',
+      'With a business case: 1-up / Cost Centre Manager (if required) \u2192 HR Services \u2192 Senior Finance Business Partner \u2014 done.',
+      'Each approver can Approve, Send Back (returns the whole request to you for fixes), or Delegate to someone else.',
+    ],
+    tools: [
+      { view: 'approval', label: 'See your exact chain', icon: '#i-flow' },
+    ],
+  },
+  {
+    id: 'activate', n: 3, label: 'Activate', icon: '#i-zap', tag: 'Stage 3 of 6',
+    summary: 'Once every approver signs off, the position goes live automatically \u2014 there is nothing further for you to click.',
+    details: [
+      'The position becomes active in SuccessFactors and appears on your Position Org Chart.',
+      'It becomes visible in organisational reports.',
+    ],
+    tools: [],
+  },
+  {
+    id: 'recruit', n: 4, label: 'Recruit', icon: '#i-user', tag: 'Stage 4 of 6',
+    summary: 'If To be Recruited is Yes on the now-active position, you can raise a job requisition against it.',
+    details: [
+      'From the Position Org Chart, open the position and select Actions > Create Job Requisition',
+      'The requisition pre-fills from the position \u2014 title, classification, FTE, and reporting line.',
+      'Only one requisition can be open against a position at a time.',
+    ],
+    tools: [
+      { view: 'fields', field: 'to-be-recruited', label: 'Look up \u201cTo be Recruited\u201d', icon: '#i-book' },
+    ],
+  },
+  {
+    id: 'amend', n: 5, label: 'Amend', icon: '#i-edit', tag: 'Stage 5 of 6',
+    summary: 'Need to change something after creation? Open the position, set an Effective Date, and pick the Change Reason that actually matches what\u2019s changing.',
+    details: [
+      'Change Reason controls which fields unlock \u2014 FTE, Title, Classification, and Other Attributes each unlock a different set.',
+      'If the position has incumbents, decide whether the change should synchronise to their Job Information records \u2014 some fields do, some don\u2019t, and getting a classification change wrong here risks a payroll mismatch.',
+    ],
+    tools: [
+      { view: 'wizard', label: 'Work out the right Change Reason', icon: '#i-branch' },
+      { view: 'sync', label: 'Check synchronisation risk', icon: '#i-shield' },
+      { view: 'fte', label: 'FTE & Hours Calculator', icon: '#i-calculator' },
+    ],
+    loopNote: 'Amends are repeatable \u2014 a position can pass through this stage many times over its life.',
+  },
+  {
+    id: 'deactivate', n: 6, label: 'Deactivate', icon: '#i-power', tag: 'Stage 6 of 6',
+    summary: 'Retiring a position frees its budgeted FTE for reallocation elsewhere \u2014 but SuccessFactors only allows it under specific conditions.',
+    details: [
+      'The position must be genuinely vacant, with nothing future-dated already moving someone in.',
+      'You\u2019ll add a comment explaining the reallocation \u2014 it\u2019s visible to anyone viewing the position.',
+      'Inactive positions disappear from most reports and can\u2019t be used for recruitment.',
+    ],
+    tools: [
+      { view: 'deactivation', label: 'Run the deactivation checklist', icon: '#i-power' },
+    ],
+    loopNote: 'The FTE freed up here often funds a brand-new position elsewhere \u2014 the cycle returns to Submit.',
+  },
+];
+
+/* Maps each in-app tool view to the lifecycle stage it belongs to, so
+   the Lifecycle Map can mark "you are here" from whichever tool a
+   manager was using right before opening it. ── */
+PW.VIEW_TO_LIFECYCLE_STAGE = {
+  wizard: 'submit',
+  preflight: 'submit',
+  approval: 'approve',
+  sync: 'amend',
+  fte: 'amend',
+  deactivation: 'deactivate',
+};
+
 /* ── Static contact / footer info ── */
 PW.HELP_URL = 'https://austinictemr.atlassian.net/servicedesk/customer/portal/80';
 PW.DISCLAIMER = 'This is an unofficial support tool built to make Austin Health\u2019s SuccessFactors position-management process easier to navigate. It is not an official Austin Health system and is not a substitute for guidance from HR Services or your Finance Business Partner. Always confirm anything unusual or high-risk before submitting.';

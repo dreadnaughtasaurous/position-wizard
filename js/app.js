@@ -26,7 +26,9 @@ document.addEventListener('alpine:init', () => {
 
   Alpine.store('nav', {
     view: 'home',
+    previous: 'home',
     go(view) {
+      this.previous = this.view;
       this.view = view;
       Alpine.store('ui').closeSidebar();
       window.scrollTo({ top: 0 });
@@ -240,6 +242,19 @@ document.addEventListener('alpine:init', () => {
     },
 
     toggle(id) { this.openId = this.openId === id ? null : id; },
+
+    // 2.6 — lets other tools (the Lifecycle Map) jump straight to one
+    // field, expanded and scrolled into view, regardless of whatever
+    // search/category filter was previously active.
+    openField(id) {
+      this.activeCategory = 'All';
+      this.query = '';
+      this.openId = id;
+      this.$nextTick(() => {
+        const el = document.getElementById('field-' + id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    },
   }));
 
   /* ============================================================
@@ -765,6 +780,53 @@ document.addEventListener('alpine:init', () => {
     },
     get multipleHoldersFlag() { return this.fteNum !== null && this.fteNum > 1; },
   }));
+
+  /* ============================================================
+     VISUAL POSITION LIFECYCLE MAP — 2.6
+     ------------------------------------------------------------
+     Guide 7's full cycle (submit \u2192 approve \u2192 activate \u2192 recruit \u2192
+     amend \u2192 deactivate) as a clickable stage chain. "You are here"
+     is derived from whichever tool the manager was using right
+     before opening this map (Alpine.store('nav').previous, via
+     PW.VIEW_TO_LIFECYCLE_STAGE) and only re-evaluated when nav.view
+     actually changes to 'lifecycle' \u2014 so clicking between stages
+     while already here never overrides what they're browsing.
+     ============================================================ */
+  Alpine.data('lifecycleMap', () => ({
+    selected: 'submit',
+    enteredFor: null,
+
+    onEnter() {
+      if (Alpine.store('nav').view !== 'lifecycle') return;
+      const prev = Alpine.store('nav').previous;
+      if (this.enteredFor === prev) return;
+      this.enteredFor = prev;
+      this.selected = PW.VIEW_TO_LIFECYCLE_STAGE[prev] || 'submit';
+    },
+
+    get stages() { return PW.LIFECYCLE_STAGES; },
+    get activeStage() { return this.stages.find(s => s.id === this.selected) || this.stages[0]; },
+    get hereStageId() { return PW.VIEW_TO_LIFECYCLE_STAGE[Alpine.store('nav').previous] || null; },
+
+    select(id) { this.selected = id; },
+
+    stageLabel(id) {
+      const s = this.stages.find(x => x.id === id);
+      return s ? s.label : '';
+    },
+
+    // Navigates to the linked tool, then (for the one field-anchored
+    // link, Recruit \u2192 "To be Recruited") asks fieldRef to expand and
+    // scroll to that exact field once the section is actually visible.
+    openTool(tool) {
+      Alpine.store('nav').go(tool.view);
+      if (tool.field) {
+        this.$nextTick(() => {
+          window.__pwFieldRef && window.__pwFieldRef.openField(tool.field);
+        });
+      }
+    },
+  }));
 });
 
 /* ---------- Browser back/forward sync ----------
@@ -773,7 +835,7 @@ document.addEventListener('alpine:init', () => {
    of leaving the page. */
 function pwSnapshotState() {
   const nav = Alpine.store('nav');
-  const state = { view: nav.view };
+  const state = { view: nav.view, previous: nav.previous };
   const w = window.__pwWizard;
   if (nav.view === 'wizard' && w) {
     state.wizardStep = w.step;
@@ -790,6 +852,7 @@ function pwPushState() {
 
 function pwApplyState(state) {
   const nav = Alpine.store('nav');
+  nav.previous = (state && state.previous) || 'home';
   nav.view = (state && state.view) || 'home';
   Alpine.store('ui').closeSidebar();
   const w = window.__pwWizard;
